@@ -20,11 +20,8 @@
     .wordmark { font-size: 1.4rem; font-weight: 600; letter-spacing: -0.03em; }
     .wordmark span { color: var(--accent); }
     .tagline { font-size: 0.75rem; color: var(--text-muted); }
-
     .outer { display: flex; align-items: flex-start; gap: 0; width: 100%; max-width: 520px; }
-
     .card { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; }
-
     .drop-zone { border: 1.5px dashed var(--border); border-radius: 12px; padding: 2rem 1rem; text-align: center; cursor: pointer; transition: all 0.15s; margin-bottom: 1.5rem; }
     .drop-zone:hover, .drop-zone.drag-over { border-color: var(--accent); background: var(--accent-dim); }
     .drop-zone.has-file { border-style: solid; border-color: var(--accent-border); background: var(--accent-dim); padding: 1rem; }
@@ -33,62 +30,40 @@
     .drop-sub { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem; }
     .file-name { font-size: 0.8rem; color: var(--accent); font-weight: 500; margin-top: 0.5rem; word-break: break-all; }
     input[type="file"] { display: none; }
-
     .presets { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 1.5rem; }
     .preset-btn { font-family: 'Inter', sans-serif; font-size: 0.75rem; font-weight: 500; padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface2); color: var(--text-sub); cursor: pointer; transition: all 0.1s; }
     .preset-btn:hover { border-color: var(--accent-border); color: var(--text); }
     .preset-btn.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
-
     .play-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 1.5rem; }
     .play-btn { width: 46px; height: 46px; border-radius: 50%; border: 1px solid var(--border); background: var(--surface2); color: var(--text); font-size: 1.1rem; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.1s; flex-shrink: 0; }
     .play-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
     .play-btn:disabled { opacity: 0.3; cursor: not-allowed; }
     .progress-wrap { flex: 1; }
-
     input[type="range"].horizontal { -webkit-appearance: none; width: 100%; height: 4px; border-radius: 2px; background: var(--border); outline: none; cursor: pointer; }
     input[type="range"].horizontal::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--accent); cursor: pointer; transition: transform 0.1s; }
     input[type="range"].horizontal::-webkit-slider-thumb:hover { transform: scale(1.2); }
-
     .time { font-size: 0.7rem; color: var(--text-muted); margin-top: 5px; }
     .divider { border: none; border-top: 1px solid var(--border); margin: 0 0 1.25rem; }
-
-    /* Sliders + volume side by side */
     .sliders-with-volume { display: flex; align-items: stretch; gap: 14px; }
-
     .sliders-col { flex: 1; }
     .slider-row { display: flex; align-items: center; gap: 12px; margin-bottom: 1.1rem; }
     .slider-row:last-child { margin-bottom: 0; }
     .slider-row label { font-size: 0.8rem; color: var(--text-sub); min-width: 52px; }
-    .slider-val { font-size: 0.8rem; font-weight: 500; color: var(--text); min-width: 42px; text-align: right; }
-
+    .slider-val { font-size: 0.8rem; font-weight: 500; color: var(--text); min-width: 46px; text-align: right; }
+    /* EQ section */
+    .eq-group { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; margin-bottom: 1.1rem; }
+    .eq-title { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+    .eq-row { display: flex; align-items: center; gap: 10px; margin-bottom: 7px; }
+    .eq-row:last-child { margin-bottom: 0; }
+    .eq-row label { font-size: 0.75rem; color: var(--text-sub); min-width: 28px; }
+    .eq-val { font-size: 0.75rem; font-weight: 500; color: var(--text); min-width: 42px; text-align: right; }
     /* Vertical volume */
     .volume-col { display: flex; flex-direction: column; align-items: center; justify-content: space-between; gap: 6px; padding: 2px 0; }
     .vol-label { font-size: 0.65rem; color: var(--text-muted); letter-spacing: 0.06em; text-transform: uppercase; }
     .vol-icon { font-size: 0.95rem; }
     .vol-val { font-size: 0.7rem; font-weight: 500; color: var(--text); }
-
-    input[type="range"].vertical {
-      -webkit-appearance: slider-vertical;
-      writing-mode: vertical-lr;
-      direction: rtl;
-      width: 4px;
-      height: 150px;
-      padding: 0;
-      cursor: pointer;
-      outline: none;
-      background: var(--border);
-      border-radius: 2px;
-      flex-shrink: 0;
-    }
-    input[type="range"].vertical::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      width: 14px;
-      height: 14px;
-      border-radius: 50%;
-      background: var(--accent);
-      cursor: pointer;
-    }
-
+    input[type="range"].vertical { -webkit-appearance: slider-vertical; writing-mode: vertical-lr; direction: rtl; width: 4px; height: 150px; padding: 0; cursor: pointer; outline: none; background: var(--border); border-radius: 2px; flex-shrink: 0; }
+    input[type="range"].vertical::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--accent); cursor: pointer; }
     .status { font-size: 0.75rem; color: var(--text-muted); text-align: center; padding-top: 1rem; }
     footer { margin-top: 2rem; font-size: 0.7rem; color: var(--text-muted); text-align: center; }
   </style>
@@ -130,7 +105,6 @@
     <hr class="divider">
 
     <div class="sliders-with-volume">
-      <!-- vertical volume on the left -->
       <div class="volume-col">
         <div class="vol-icon">🔊</div>
         <input type="range" class="vertical" id="volumeSlider" min="0" max="100" step="1" value="50" oninput="updateVolume(this.value)">
@@ -138,7 +112,6 @@
         <div class="vol-label">Vol</div>
       </div>
 
-      <!-- all effect sliders -->
       <div class="sliders-col">
         <div class="slider-row">
           <label>Speed</label>
@@ -151,11 +124,6 @@
           <span class="slider-val" id="reverbVal">0%</span>
         </div>
         <div class="slider-row">
-          <label>Bass</label>
-          <input type="range" class="horizontal" id="bassSlider" min="-12" max="12" step="1" value="0" oninput="updateBass(this.value)">
-          <span class="slider-val" id="bassVal">0 dB</span>
-        </div>
-        <div class="slider-row">
           <label>Muffle</label>
           <input type="range" class="horizontal" id="muffleSlider" min="0" max="100" step="1" value="0" oninput="updateMuffle(this.value)">
           <span class="slider-val" id="muffleVal">0%</span>
@@ -164,6 +132,26 @@
           <label>Delay</label>
           <input type="range" class="horizontal" id="delaySlider" min="0" max="100" step="1" value="0" oninput="updateDelay(this.value)">
           <span class="slider-val" id="delayVal">0%</span>
+        </div>
+
+        <!-- EQ group replacing single bass slider -->
+        <div class="eq-group">
+          <div class="eq-title">EQ</div>
+          <div class="eq-row">
+            <label>Low</label>
+            <input type="range" class="horizontal" id="bassLow" min="-20" max="20" step="1" value="0" oninput="updateEQ()">
+            <span class="eq-val" id="bassLowVal">0 dB</span>
+          </div>
+          <div class="eq-row">
+            <label>Mid</label>
+            <input type="range" class="horizontal" id="bassMid" min="-20" max="20" step="1" value="0" oninput="updateEQ()">
+            <span class="eq-val" id="bassMidVal">0 dB</span>
+          </div>
+          <div class="eq-row">
+            <label>High</label>
+            <input type="range" class="horizontal" id="bassHigh" min="-20" max="20" step="1" value="0" oninput="updateEQ()">
+            <span class="eq-val" id="bassHighVal">0 dB</span>
+          </div>
         </div>
       </div>
     </div>
@@ -175,9 +163,9 @@
 <footer>livechangermusic.com</footer>
 
 <script>
-  let audioCtx, sourceNode, gainNode, bassFilter, muffleFilter, convolverNode, dryNode, wetNode, delayNode, delayFeedback, delayWet, delayDry, buffer;
+  let audioCtx, sourceNode, gainNode, lowFilter, midFilter, highFilter, muffleFilter, convolverNode, dryNode, wetNode, delayNode, delayFeedback, delayWet, delayDry, buffer;
   let isPlaying = false, startedAt = 0, pausedAt = 0;
-  let speed = 1, reverbAmount = 0, bassGain = 0, muffleAmount = 0, delayAmount = 0, userVolume = 0.5;
+  let speed = 1, reverbAmount = 0, lowGain = 0, midGain = 0, highGain = 0, muffleAmount = 0, delayAmount = 0, userVolume = 0.5;
   let reverbBuffer = null, animFrame, isSeeking = false;
 
   const playBtn = document.getElementById('playBtn');
@@ -186,8 +174,7 @@
   const status = document.getElementById('status');
 
   document.getElementById('fileInput').addEventListener('change', e => {
-    const file = e.target.files[0];
-    if (file) loadFile(file);
+    const file = e.target.files[0]; if (file) loadFile(file);
   });
 
   const dropZone = document.getElementById('dropZone');
@@ -235,31 +222,53 @@
     return 20000 * Math.pow(300 / 20000, pct / 100);
   }
 
-  // Base volume goes up to 2.0 (200%). 
-  // Reverb and muffle each add up to +1.0 boost on top so the effect stays audible.
   function effectiveGain() {
-    const base = userVolume * 2.0; // 0-2.0
-    const reverbBoost = (reverbAmount / 100) * 1.0;
-    const muffleBoost = (muffleAmount / 100) * 1.0;
+    const base = userVolume * 2.0;
+    const reverbBoost = (reverbAmount / 100) * 0.9;
+    const muffleBoost = (muffleAmount / 100) * 0.9;
     return Math.min(base + reverbBoost + muffleBoost, 3.5);
   }
 
   function buildGraph() {
     gainNode = audioCtx.createGain();
     gainNode.gain.value = effectiveGain();
-    bassFilter = audioCtx.createBiquadFilter();
-    bassFilter.type = 'lowshelf'; bassFilter.frequency.value = 150; bassFilter.gain.value = bassGain;
+
+    // 3-band EQ
+    lowFilter = audioCtx.createBiquadFilter();
+    lowFilter.type = 'lowshelf';
+    lowFilter.frequency.value = 250;
+    lowFilter.gain.value = lowGain;
+
+    midFilter = audioCtx.createBiquadFilter();
+    midFilter.type = 'peaking';
+    midFilter.frequency.value = 1000;
+    midFilter.Q.value = 0.8;
+    midFilter.gain.value = midGain;
+
+    highFilter = audioCtx.createBiquadFilter();
+    highFilter.type = 'highshelf';
+    highFilter.frequency.value = 4000;
+    highFilter.gain.value = highGain;
+
     muffleFilter = audioCtx.createBiquadFilter();
-    muffleFilter.type = 'lowpass'; muffleFilter.frequency.value = muffleFreq(muffleAmount); muffleFilter.Q.value = 0.5;
+    muffleFilter.type = 'lowpass';
+    muffleFilter.frequency.value = muffleFreq(muffleAmount);
+    muffleFilter.Q.value = 0.5;
+
     delayNode = audioCtx.createDelay(2.0); delayNode.delayTime.value = 0.35;
     delayFeedback = audioCtx.createGain(); delayFeedback.gain.value = 0.45;
     delayWet = audioCtx.createGain(); delayWet.gain.value = delayAmount / 100;
     delayDry = audioCtx.createGain(); delayDry.gain.value = 1;
+
     convolverNode = audioCtx.createConvolver(); convolverNode.buffer = reverbBuffer;
     dryNode = audioCtx.createGain(); dryNode.gain.value = 1 - reverbAmount / 100;
     wetNode = audioCtx.createGain(); wetNode.gain.value = reverbAmount / 100;
-    gainNode.connect(bassFilter);
-    bassFilter.connect(muffleFilter);
+
+    // Chain: gain → low → mid → high → muffle → delay/reverb → out
+    gainNode.connect(lowFilter);
+    lowFilter.connect(midFilter);
+    midFilter.connect(highFilter);
+    highFilter.connect(muffleFilter);
     muffleFilter.connect(delayDry);
     muffleFilter.connect(delayNode);
     delayNode.connect(delayFeedback);
@@ -282,9 +291,7 @@
     sourceNode.connect(gainNode);
     sourceNode.start(0, offset);
     startedAt = audioCtx.currentTime - offset / speed;
-    isPlaying = true;
-    playBtn.textContent = '⏸';
-    status.textContent = 'Playing';
+    isPlaying = true; playBtn.textContent = '⏸'; status.textContent = 'Playing';
     sourceNode.onended = () => {
       if (isPlaying) {
         isPlaying = false; pausedAt = 0; playBtn.textContent = '▶';
@@ -296,26 +303,16 @@
   }
 
   function stopAudio() {
-    isPlaying = false;
-    cancelAnimationFrame(animFrame);
-    if (sourceNode) {
-      sourceNode.onended = null;
-      try { sourceNode.stop(); } catch(e){}
-      sourceNode = null;
-    }
+    isPlaying = false; cancelAnimationFrame(animFrame);
+    if (sourceNode) { sourceNode.onended = null; try { sourceNode.stop(); } catch(e){} sourceNode = null; }
     playBtn.textContent = '▶';
   }
 
   function togglePlay() {
     if (!buffer) return;
     if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-    if (isPlaying) {
-      pausedAt = (audioCtx.currentTime - startedAt) * speed;
-      stopAudio();
-      status.textContent = 'Paused';
-    } else {
-      startAudio(pausedAt);
-    }
+    if (isPlaying) { pausedAt = (audioCtx.currentTime - startedAt) * speed; stopAudio(); status.textContent = 'Paused'; }
+    else startAudio(pausedAt);
   }
 
   progressBar.addEventListener('mousedown', () => { isSeeking = true; });
@@ -325,8 +322,7 @@
   function seek(val) {
     if (!buffer) return;
     const offset = (val / 100) * buffer.duration;
-    pausedAt = offset;
-    updateTimeDisplay(offset);
+    pausedAt = offset; updateTimeDisplay(offset);
     if (isPlaying) { stopAudio(); startAudio(offset); }
   }
 
@@ -371,10 +367,16 @@
     clearPresets();
   }
 
-  function updateBass(val) {
-    bassGain = parseInt(val);
-    document.getElementById('bassVal').textContent = (bassGain >= 0 ? '+' : '') + bassGain + ' dB';
-    if (bassFilter) bassFilter.gain.value = bassGain;
+  function updateEQ() {
+    lowGain = parseInt(document.getElementById('bassLow').value);
+    midGain = parseInt(document.getElementById('bassMid').value);
+    highGain = parseInt(document.getElementById('bassHigh').value);
+    document.getElementById('bassLowVal').textContent = (lowGain >= 0 ? '+' : '') + lowGain + ' dB';
+    document.getElementById('bassMidVal').textContent = (midGain >= 0 ? '+' : '') + midGain + ' dB';
+    document.getElementById('bassHighVal').textContent = (highGain >= 0 ? '+' : '') + highGain + ' dB';
+    if (lowFilter) lowFilter.gain.value = lowGain;
+    if (midFilter) midFilter.gain.value = midGain;
+    if (highFilter) highFilter.gain.value = highGain;
     clearPresets();
   }
 
@@ -395,20 +397,22 @@
 
   function applyPreset(name, e) {
     const presets = {
-      normal:    { speed: 1,    reverb: 0,  bass: 0,  muffle: 0,  delay: 0  },
-      slowed:    { speed: 0.75, reverb: 45, bass: 3,  muffle: 0,  delay: 0  },
-      nightcore: { speed: 1.30, reverb: 10, bass: 0,  muffle: 0,  delay: 0  },
-      lofi:      { speed: 0.90, reverb: 30, bass: 5,  muffle: 20, delay: 0  },
-      tunnel:    { speed: 1,    reverb: 70, bass: -3, muffle: 55, delay: 15 },
-      echo:      { speed: 1,    reverb: 20, bass: 0,  muffle: 0,  delay: 65 },
+      normal:    { speed: 1,    reverb: 0,  low: 0,  mid: 0,  high: 0,  muffle: 0,  delay: 0  },
+      slowed:    { speed: 0.75, reverb: 45, low: 3,  mid: 0,  high: 0,  muffle: 0,  delay: 0  },
+      nightcore: { speed: 1.30, reverb: 10, low: 0,  mid: 0,  high: 2,  muffle: 0,  delay: 0  },
+      lofi:      { speed: 0.90, reverb: 30, low: 4,  mid: -2, high: -3, muffle: 20, delay: 0  },
+      tunnel:    { speed: 1,    reverb: 70, low: -3, mid: 0,  high: 0,  muffle: 55, delay: 15 },
+      echo:      { speed: 1,    reverb: 20, low: 0,  mid: 0,  high: 0,  muffle: 0,  delay: 65 },
     };
     const p = presets[name];
     document.getElementById('speedSlider').value = p.speed;
     document.getElementById('reverbSlider').value = p.reverb;
-    document.getElementById('bassSlider').value = p.bass;
+    document.getElementById('bassLow').value = p.low;
+    document.getElementById('bassMid').value = p.mid;
+    document.getElementById('bassHigh').value = p.high;
     document.getElementById('muffleSlider').value = p.muffle;
     document.getElementById('delaySlider').value = p.delay;
-    updateSpeed(p.speed); updateReverb(p.reverb); updateBass(p.bass); updateMuffle(p.muffle); updateDelay(p.delay);
+    updateSpeed(p.speed); updateReverb(p.reverb); updateEQ(); updateMuffle(p.muffle); updateDelay(p.delay);
     document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
     e.target.classList.add('active');
   }
