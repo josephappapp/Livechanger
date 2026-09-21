@@ -19,6 +19,16 @@
     header { width: 100%; max-width: 520px; display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 2.5rem; }
     .wordmark { font-size: 1.4rem; font-weight: 600; letter-spacing: -0.03em; }
     .wordmark span { color: var(--accent); }
+    .wordmark .morph-letter { display: inline-block; position: relative; }
+    .wordmark .morph-letter .from,
+    .wordmark .morph-letter .to { position: absolute; left: 0; transition: opacity 0.6s ease; }
+    .wordmark .morph-letter .from { opacity: 1; position: relative; }
+    .wordmark .morph-letter .to { opacity: 0; top: 0; }
+    @keyframes morphVF {
+      0%, 35%   { }
+      40%, 60%  { }
+      65%, 100% { }
+    }
     .tagline { font-size: 0.75rem; color: var(--text-muted); }
     .outer { display: flex; align-items: flex-start; gap: 0; width: 100%; max-width: 520px; }
     .card { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; }
@@ -68,7 +78,7 @@
 <body>
 
 <header>
-  <div class="wordmark">Live<span>changer</span></div>
+  <div class="wordmark">Li<span class="morph-letter" id="morphLetter"><span class="from">v</span><span class="to">f</span></span>e<span>changer</span></div>
   <div class="tagline">real-time audio effects</div>
 </header>
 
@@ -375,6 +385,10 @@
 
   async function resampleBitcrush(pct) {
     if (!originalBuffer) return;
+    // Capture real playback position before we touch anything
+    if (isPlaying && audioCtx) {
+      pausedAt = (audioCtx.currentTime - startedAt) * speed;
+    }
     if (pct === 0) { buffer = originalBuffer; if (isPlaying) { const pos = pausedAt; stopAudio(); startAudio(pos); } return; }
 
     status.textContent = 'Processing...';
@@ -407,7 +421,12 @@
     buffer = crushedBuf;
     status.textContent = isPlaying ? 'Playing' : 'Ready — hit play';
 
-    if (isPlaying) { const pos = pausedAt; stopAudio(); startAudio(pos); }
+    // Resume from the exact position we were at before processing
+    const resumePos = Math.min(pausedAt, buffer.duration - 0.01);
+    const wasPlaying = isPlaying;
+    if (wasPlaying) stopAudio();
+    pausedAt = resumePos;
+    if (wasPlaying) startAudio(resumePos);
   }
 
   function updateBitcrush(val) {
@@ -484,6 +503,24 @@
 
   // Load saved presets on init
   renderSavedPresets();
+
+  // v → f → v morph animation on the logo
+  (function morphLogo() {
+    const fromEl = document.querySelector('.morph-letter .from');
+    const toEl = document.querySelector('.morph-letter .to');
+    if (!fromEl || !toEl) return;
+    function showF() {
+      fromEl.style.opacity = '0';
+      toEl.style.opacity = '1';
+      setTimeout(showV, 1800);
+    }
+    function showV() {
+      fromEl.style.opacity = '1';
+      toEl.style.opacity = '0';
+      setTimeout(showF, 3500);
+    }
+    setTimeout(showF, 3500);
+  })();
 </script>
 </body>
 </html>
