@@ -6,7 +6,7 @@
   <title>Livechanger — Real-time Audio Effects</title>
   <meta name="description" content="Transform any song in real time. Speed, reverb, bass, muffle, delay — all in your browser.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Using Courier New, system monospace -->
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -15,10 +15,11 @@
       --text-sub: #999; --accent: #6c63ff;
       --accent-dim: rgba(108,99,255,0.15); --accent-border: rgba(108,99,255,0.4);
     }
-    body { font-family: 'Comfortaa', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 2rem 1rem 4rem; }
+    body { font-family: 'Courier New', Courier, monospace; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 2rem 1rem 4rem; }
     header { width: 100%; max-width: 520px; display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 2.5rem; }
     .wordmark { font-size: 1.4rem; font-weight: 600; letter-spacing: -0.03em; }
     .wordmark span { color: var(--accent); }
+    .wordmark .morph-letter { color: var(--text); }
     .wordmark .morph-letter { display: inline-block; position: relative; }
     .wordmark .morph-letter .from,
     .wordmark .morph-letter .to { position: absolute; left: 0; transition: opacity 0.6s ease; }
@@ -41,7 +42,7 @@
     .file-name { font-size: 0.8rem; color: var(--accent); font-weight: 500; margin-top: 0.5rem; word-break: break-all; }
     input[type="file"] { display: none; }
     .presets { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 1.5rem; }
-    .preset-btn { font-family: 'Comfortaa', sans-serif; font-size: 0.75rem; font-weight: 500; padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface2); color: var(--text-sub); cursor: pointer; transition: all 0.1s; }
+    .preset-btn { font-family: 'Courier New', Courier, monospace; font-size: 0.75rem; font-weight: 500; padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface2); color: var(--text-sub); cursor: pointer; transition: all 0.1s; }
     .preset-btn:hover { border-color: var(--accent-border); color: var(--text); }
     .preset-btn.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
     .action-btn { border-color: var(--border); color: var(--text-sub); }
@@ -63,7 +64,7 @@
     .sliders-col { flex: 1; }
     .slider-row { display: flex; align-items: center; gap: 12px; margin-bottom: 1.1rem; }
     .slider-row:last-child { margin-bottom: 0; }
-    .slider-row label { font-size: 0.8rem; color: var(--text-sub); min-width: 72px; }
+    .slider-row label { font-size: 0.8rem; color: var(--text-sub); min-width: 72px; text-align: center; }
     .slider-val { font-size: 0.8rem; font-weight: 500; color: var(--text); min-width: 46px; text-align: right; }
     .volume-col { display: flex; flex-direction: column; align-items: center; justify-content: space-between; gap: 6px; padding: 2px 0; }
     .vol-label { font-size: 0.65rem; color: var(--text-muted); letter-spacing: 0.06em; text-transform: uppercase; }
@@ -93,6 +94,7 @@
     <input type="file" id="fileInput" accept="audio/*">
 
     <div class="presets" id="presetsRow">
+      <button class="preset-btn action-btn" id="loopBtn" onclick="toggleLoop()">⟳ Loop</button>
       <button class="preset-btn action-btn" onclick="resetSliders()">Reset</button>
       <button class="preset-btn action-btn" onclick="savePreset()">+ Save Preset</button>
     </div>
@@ -278,6 +280,7 @@
     sourceNode.buffer = buffer;
     sourceNode.playbackRate.value = speed;
     sourceNode.connect(gainNode);
+    sourceNode.loop = loopEnabled;
     sourceNode.start(0, offset);
     startedAt = audioCtx.currentTime - offset / speed;
     isPlaying = true; playBtn.textContent = '⏸'; status.textContent = 'Playing';
@@ -385,10 +388,11 @@
 
   async function resampleBitcrush(pct) {
     if (!originalBuffer) return;
-    // Capture real playback position before we touch anything
+    // Capture real playback position to the tenth of a second
     if (isPlaying && audioCtx) {
-      pausedAt = (audioCtx.currentTime - startedAt) * speed;
+      pausedAt = Math.round((audioCtx.currentTime - startedAt) * speed * 10) / 10;
     }
+    const processStart = audioCtx ? audioCtx.currentTime : 0;
     if (pct === 0) { buffer = originalBuffer; if (isPlaying) { const pos = pausedAt; stopAudio(); startAudio(pos); } return; }
 
     status.textContent = 'Processing...';
@@ -421,8 +425,9 @@
     buffer = crushedBuf;
     status.textContent = isPlaying ? 'Playing' : 'Ready — hit play';
 
-    // Resume from the exact position we were at before processing
-    const resumePos = Math.min(pausedAt, buffer.duration - 0.01);
+    // Add processing time so resume feels seamless
+    const processingElapsed = audioCtx ? (audioCtx.currentTime - processStart) : 0;
+    const resumePos = Math.min(pausedAt + processingElapsed, buffer.duration - 0.01);
     const wasPlaying = isPlaying;
     if (wasPlaying) stopAudio();
     pausedAt = resumePos;
@@ -499,6 +504,15 @@
 
   function clearPresets() {
     document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  }
+
+  // Loop toggle
+  let loopEnabled = false;
+  function toggleLoop() {
+    loopEnabled = !loopEnabled;
+    const btn = document.getElementById('loopBtn');
+    btn.classList.toggle('active', loopEnabled);
+    if (sourceNode) sourceNode.loop = loopEnabled;
   }
 
   // Load saved presets on init
