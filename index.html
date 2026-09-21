@@ -80,7 +80,7 @@
 
 <header>
   <div class="wordmark">Li<span class="morph-letter" id="morphLetter"><span class="from">v</span><span class="to">f</span></span>e<span>changer</span></div>
-  <div class="tagline">real-time audio effects</div>
+  <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px"><div class="tagline">real-time audio effects</div><div class="tagline" id="bpmDisplay" style="display:none">BPM: detecting...</div></div>
 </header>
 
 <div class="outer">
@@ -95,6 +95,7 @@
 
     <div class="presets" id="presetsRow">
       <button class="preset-btn action-btn" id="loopBtn" onclick="toggleLoop()">⟳ Loop</button>
+      <button class="preset-btn action-btn" id="pulseBtn" onclick="togglePulse()" disabled>〜 Pulse</button>
       <button class="preset-btn action-btn" onclick="resetSliders()">Reset</button>
       <button class="preset-btn action-btn" onclick="savePreset()">+ Save Preset</button>
     </div>
@@ -112,7 +113,7 @@
     <div class="sliders-with-volume">
       <div class="volume-col">
         <div class="vol-icon">🔊</div>
-        <input type="range" class="vertical" id="volumeSlider" min="0" max="100" step="1" value="50" oninput="updateVolume(this.value)">
+        <input type="range" class="vertical" id="volumeSlider" min="0" max="100" step="5" value="50" oninput="updateVolume(this.value)">
         <div class="vol-val" id="volVal">50%</div>
         <div class="vol-label">Vol</div>
       </div>
@@ -125,7 +126,7 @@
         </div>
         <div class="slider-row">
           <label>Reverb</label>
-          <input type="range" class="horizontal" id="reverbSlider" min="0" max="100" step="1" value="0" oninput="updateReverb(this.value)">
+          <input type="range" class="horizontal" id="reverbSlider" min="0" max="100" step="5" value="0" oninput="updateReverb(this.value)">
           <span class="slider-val" id="reverbVal">0%</span>
         </div>
         <div class="slider-row">
@@ -135,17 +136,17 @@
         </div>
         <div class="slider-row">
           <label>Underwater</label>
-          <input type="range" class="horizontal" id="muffleSlider" min="0" max="100" step="1" value="0" oninput="updateMuffle(this.value)">
+          <input type="range" class="horizontal" id="muffleSlider" min="0" max="100" step="5" value="0" oninput="updateMuffle(this.value)">
           <span class="slider-val" id="muffleVal">0%</span>
         </div>
         <div class="slider-row">
           <label>Delay</label>
-          <input type="range" class="horizontal" id="delaySlider" min="0" max="100" step="1" value="0" oninput="updateDelay(this.value)">
+          <input type="range" class="horizontal" id="delaySlider" min="0" max="100" step="5" value="0" oninput="updateDelay(this.value)">
           <span class="slider-val" id="delayVal">0%</span>
         </div>
         <div class="slider-row">
           <label>Bitcrush</label>
-          <input type="range" class="horizontal" id="bitcrushSlider" min="0" max="100" step="1" value="0" oninput="updateBitcrush(this.value)">
+          <input type="range" class="horizontal" id="bitcrushSlider" min="0" max="100" step="5" value="0" oninput="updateBitcrush(this.value)">
           <span class="slider-val" id="bitcrushVal">0%</span>
         </div>
       </div>
@@ -205,6 +206,15 @@
     status.textContent = 'Ready — hit play';
     progressBar.value = 0;
     updateTimeDisplay(0);
+    // Detect BPM in background
+    const bpmDisplay = document.getElementById('bpmDisplay');
+    bpmDisplay.style.display = 'block';
+    bpmDisplay.textContent = 'BPM: detecting...';
+    detectBPM(buffer).then(bpm => {
+      detectedBPM = bpm;
+      bpmDisplay.textContent = 'BPM: ' + bpm;
+      document.getElementById('pulseBtn').disabled = false;
+    });
   }
 
   function createReverbBuffer(ctx) {
@@ -285,6 +295,15 @@
     startedAt = audioCtx.currentTime - offset / speed;
     isPlaying = true; playBtn.textContent = '⏸'; status.textContent = 'Playing';
     sourceNode.onended = () => {
+      if (isPlaying && loopEnabled) {
+        // Loop: reset progress bar and restart tracking
+        startedAt = audioCtx.currentTime;
+        pausedAt = 0;
+        progressBar.value = 0;
+        updateTimeDisplay(0);
+        // sourceNode.loop handles actual audio looping, just reset tracking
+        return;
+      }
       if (isPlaying) {
         isPlaying = false; pausedAt = 0; playBtn.textContent = '▶';
         cancelAnimationFrame(animFrame); progressBar.value = 0;
@@ -513,6 +532,102 @@
     const btn = document.getElementById('loopBtn');
     btn.classList.toggle('active', loopEnabled);
     if (sourceNode) sourceNode.loop = loopEnabled;
+  }
+
+  // BPM detection using energy-based onset detection
+  let detectedBPM = 120;
+  async function detectBPM(buf) {
+    const sr = buf.sampleRate;
+    const data = buf.getChannelData(0);
+    const windowSize = Math.floor(sr * 0.01); // 10ms windows
+    const energies = [];
+    for (let i = 0; i < data.length - windowSize; i += windowSize) {
+      let e = 0;
+      for (let j = 0; j < windowSize; j++) e += data[i+j] * data[i+j];
+      energies.push(e / windowSize);
+    }
+    // Find peaks in energy
+    const threshold = energies.reduce((a,b) => a+b, 0) / energies.length * 1.5;
+    const peaks = [];
+    const minGap = Math.floor(sr * 0.3 / windowSize); // min 300ms between beats
+    let lastPeak = -minGap;
+    for (let i = 1; i < energies.length - 1; i++) {
+      if (energies[i] > threshold && energies[i] > energies[i-1] && energies[i] > energies[i+1] && i - lastPeak > minGap) {
+        peaks.push(i);
+        lastPeak = i;
+      }
+    }
+    if (peaks.length < 4) return 120;
+    // Average interval between peaks
+    const intervals = [];
+    for (let i = 1; i < Math.min(peaks.length, 32); i++) {
+      intervals.push((peaks[i] - peaks[i-1]) * windowSize / sr);
+    }
+    const avgInterval = intervals.reduce((a,b) => a+b, 0) / intervals.length;
+    const bpm = Math.round(60 / avgInterval);
+    // Normalize to 60-180 range
+    let b = bpm;
+    while (b < 60) b *= 2;
+    while (b > 180) b /= 2;
+    return b;
+  }
+
+  // Pulse: fade underwater in over 16 beats (slow), out over 4 beats (fast)
+  let pulseEnabled = false;
+  let pulseRaf = null;
+  let pulseStartTime = null;
+  let pulsePhase = 'in'; // 'in' or 'out'
+  let pulsePhaseStart = null;
+
+  function togglePulse() {
+    pulseEnabled = !pulseEnabled;
+    const btn = document.getElementById('pulseBtn');
+    btn.classList.toggle('active', pulseEnabled);
+    if (pulseEnabled) {
+      pulsePhase = 'in';
+      pulsePhaseStart = performance.now();
+      runPulse();
+    } else {
+      cancelAnimationFrame(pulseRaf);
+      // Reset underwater to 0
+      document.getElementById('muffleSlider').value = 0;
+      updateMuffle(0);
+    }
+  }
+
+  function runPulse() {
+    if (!pulseEnabled) return;
+    const now = performance.now();
+    // BPM adjusted for playback speed
+    const effectiveBPM = detectedBPM * speed;
+    const beatMs = (60 / effectiveBPM) * 1000;
+    // 16 beats fade in, 4 beats fade out
+    const inDuration = beatMs * 16;
+    const outDuration = beatMs * 4;
+
+    const elapsed = now - pulsePhaseStart;
+    let muffleVal;
+
+    if (pulsePhase === 'in') {
+      muffleVal = Math.min((elapsed / inDuration) * 100, 100);
+      if (elapsed >= inDuration) {
+        pulsePhase = 'out';
+        pulsePhaseStart = now;
+      }
+    } else {
+      muffleVal = Math.max(100 - (elapsed / outDuration) * 100, 0);
+      if (elapsed >= outDuration) {
+        pulsePhase = 'in';
+        pulsePhaseStart = now;
+      }
+    }
+
+    // Snap to step of 5
+    muffleVal = Math.round(muffleVal / 5) * 5;
+    document.getElementById('muffleSlider').value = muffleVal;
+    updateMuffle(muffleVal);
+
+    pulseRaf = requestAnimationFrame(runPulse);
   }
 
   // Load saved presets on init
