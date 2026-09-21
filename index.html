@@ -34,6 +34,11 @@
     .preset-btn { font-family: 'Inter', sans-serif; font-size: 0.75rem; font-weight: 500; padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface2); color: var(--text-sub); cursor: pointer; transition: all 0.1s; }
     .preset-btn:hover { border-color: var(--accent-border); color: var(--text); }
     .preset-btn.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+    .action-btn { border-color: var(--border); color: var(--text-sub); }
+    .action-btn:hover { border-color: var(--accent-border); color: var(--accent); background: var(--accent-dim); }
+    .saved-preset { position: relative; padding-right: 26px; }
+    .saved-preset .del { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); font-size: 0.7rem; opacity: 0.5; cursor: pointer; line-height: 1; }
+    .saved-preset .del:hover { opacity: 1; color: #ff6b6b; }
     .play-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 1.5rem; }
     .play-btn { width: 46px; height: 46px; border-radius: 50%; border: 1px solid var(--border); background: var(--surface2); color: var(--text); font-size: 1.1rem; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.1s; flex-shrink: 0; }
     .play-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
@@ -77,13 +82,9 @@
     </div>
     <input type="file" id="fileInput" accept="audio/*">
 
-    <div class="presets">
-      <button class="preset-btn" onclick="applyPreset('normal',event)">Normal</button>
-      <button class="preset-btn" onclick="applyPreset('slowed',event)">Slowed+Reverb</button>
-      <button class="preset-btn" onclick="applyPreset('nightcore',event)">Nightcore</button>
-      <button class="preset-btn" onclick="applyPreset('lofi',event)">Lo-fi</button>
-      <button class="preset-btn" onclick="applyPreset('tunnel',event)">Tunnel</button>
-      <button class="preset-btn" onclick="applyPreset('echo',event)">Echo</button>
+    <div class="presets" id="presetsRow">
+      <button class="preset-btn action-btn" onclick="resetSliders()">Reset</button>
+      <button class="preset-btn action-btn" onclick="savePreset()">+ Save Preset</button>
     </div>
 
     <div class="play-bar">
@@ -235,12 +236,12 @@
     dryNode = audioCtx.createGain(); dryNode.gain.value = 1 - reverbAmount / 100;
     wetNode = audioCtx.createGain(); wetNode.gain.value = reverbAmount / 100;
 
-    // Bitcrusher: WaveShaper that quantizes amplitude into discrete steps
-    // makeBitcrushCurve builds a staircase transfer function — the fewer steps,
-    // the more aggressive the quantization noise / crunch
-    bitcrushNode = audioCtx.createWaveShaper();
-    bitcrushNode.curve = makeBitcrushCurve(bitcrushAmount);
-    bitcrushNode.oversample = 'none';
+    // Lo-fi quality degradation: high-shelf cut simulates bandwidth loss of low-bitrate audio
+    // At 0% = flat (full quality), at 100% = heavy rolloff above ~2kHz (sounds like 32kbps)
+    bitcrushNode = audioCtx.createBiquadFilter();
+    bitcrushNode.type = 'highshelf';
+    bitcrushNode.frequency.value = 3000;
+    bitcrushNode.gain.value = bitcrushCutGain(bitcrushAmount);
 
     gainNode.connect(bassFilter);
     bassFilter.connect(bitcrushNode);
@@ -365,52 +366,83 @@
     clearPresets();
   }
 
-  // Staircase transfer function: quantizes signal into N steps
-  // At 0% = 256 steps (basically clean), at 100% = 2 steps (full square wave)
-  function makeBitcrushCurve(pct) {
-    const n = 65536;
-    const curve = new Float32Array(n);
-    const steps = Math.max(2, Math.round(256 - (pct / 100) * 254));
-    for (let i = 0; i < n; i++) {
-      const x = (i * 2) / n - 1;
-      curve[i] = Math.round(x * steps) / steps;
-    }
-    return curve;
+  function bitcrushCutGain(pct) {
+    // 0% = 0dB cut (no effect), 100% = -30dB cut above 3kHz (sounds lo-fi/low bitrate)
+    return -(pct / 100) * 30;
   }
 
   function updateBitcrush(val) {
     bitcrushAmount = parseInt(val);
     document.getElementById('bitcrushVal').textContent = bitcrushAmount + '%';
-    if (bitcrushNode) {
-      bitcrushNode.curve = makeBitcrushCurve(bitcrushAmount);
-    }
+    if (bitcrushNode) bitcrushNode.gain.value = bitcrushCutGain(bitcrushAmount);
     clearPresets();
   }
 
-  function applyPreset(name, e) {
-    const presets = {
-      normal:    { speed: 1,    reverb: 0,  bass: 0,  muffle: 0,  delay: 0,  bitcrush: 0  },
-      slowed:    { speed: 0.75, reverb: 45, bass: 3,  muffle: 0,  delay: 0,  bitcrush: 0  },
-      nightcore: { speed: 1.30, reverb: 10, bass: 0,  muffle: 0,  delay: 0,  bitcrush: 0  },
-      lofi:      { speed: 0.90, reverb: 30, bass: 5,  muffle: 20, delay: 0,  bitcrush: 30 },
-      tunnel:    { speed: 1,    reverb: 70, bass: -3, muffle: 55, delay: 15, bitcrush: 0  },
-      echo:      { speed: 1,    reverb: 20, bass: 0,  muffle: 0,  delay: 65, bitcrush: 0  },
+  let savedPresets = JSON.parse(localStorage.getItem('lc_presets') || '[]');
+
+  function getCurrentValues() {
+    return {
+      speed: parseFloat(document.getElementById('speedSlider').value),
+      reverb: parseInt(document.getElementById('reverbSlider').value),
+      bass: parseInt(document.getElementById('bassSlider').value),
+      muffle: parseInt(document.getElementById('muffleSlider').value),
+      delay: parseInt(document.getElementById('delaySlider').value),
+      bitcrush: parseInt(document.getElementById('bitcrushSlider').value),
+      volume: parseInt(document.getElementById('volumeSlider').value),
     };
-    const p = presets[name];
+  }
+
+  function applyValues(p) {
     document.getElementById('speedSlider').value = p.speed;
     document.getElementById('reverbSlider').value = p.reverb;
     document.getElementById('bassSlider').value = p.bass;
     document.getElementById('muffleSlider').value = p.muffle;
     document.getElementById('delaySlider').value = p.delay;
     document.getElementById('bitcrushSlider').value = p.bitcrush;
-    updateSpeed(p.speed); updateReverb(p.reverb); updateBass(p.bass); updateMuffle(p.muffle); updateDelay(p.delay); updateBitcrush(p.bitcrush);
-    document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
-    e.target.classList.add('active');
+    if (p.volume !== undefined) { document.getElementById('volumeSlider').value = p.volume; updateVolume(p.volume); }
+    updateSpeed(p.speed); updateReverb(p.reverb); updateBass(p.bass);
+    updateMuffle(p.muffle); updateDelay(p.delay); updateBitcrush(p.bitcrush);
+  }
+
+  function resetSliders() {
+    applyValues({ speed: 1, reverb: 0, bass: 0, muffle: 0, delay: 0, bitcrush: 0, volume: 50 });
+    clearPresets();
+  }
+
+  function savePreset() {
+    const name = prompt('Name this preset:');
+    if (!name || !name.trim()) return;
+    const preset = { name: name.trim(), values: getCurrentValues() };
+    savedPresets.push(preset);
+    try { localStorage.setItem('lc_presets', JSON.stringify(savedPresets)); } catch(e) {}
+    renderSavedPresets();
+  }
+
+  function deletePreset(idx) {
+    savedPresets.splice(idx, 1);
+    try { localStorage.setItem('lc_presets', JSON.stringify(savedPresets)); } catch(e) {}
+    renderSavedPresets();
+  }
+
+  function renderSavedPresets() {
+    const row = document.getElementById('presetsRow');
+    // Remove old saved preset buttons
+    row.querySelectorAll('.saved-preset').forEach(b => b.remove());
+    savedPresets.forEach((p, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'preset-btn saved-preset';
+      btn.innerHTML = p.name + '<span class="del" onclick="event.stopPropagation();deletePreset(' + i + ')">✕</span>';
+      btn.onclick = () => { applyValues(p.values); clearPresets(); btn.classList.add('active'); };
+      row.appendChild(btn);
+    });
   }
 
   function clearPresets() {
     document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
   }
+
+  // Load saved presets on init
+  renderSavedPresets();
 </script>
 </body>
 </html>
