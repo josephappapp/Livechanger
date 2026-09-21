@@ -6,7 +6,7 @@
   <title>Livechanger — Real-time Audio Effects</title>
   <meta name="description" content="Transform any song in real time. Speed, reverb, bass, muffle, delay — all in your browser.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -15,7 +15,7 @@
       --text-sub: #999; --accent: #6c63ff;
       --accent-dim: rgba(108,99,255,0.15); --accent-border: rgba(108,99,255,0.4);
     }
-    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 2rem 1rem 4rem; }
+    body { font-family: 'Comfortaa', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 2rem 1rem 4rem; }
     header { width: 100%; max-width: 520px; display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 2.5rem; }
     .wordmark { font-size: 1.4rem; font-weight: 600; letter-spacing: -0.03em; }
     .wordmark span { color: var(--accent); }
@@ -31,7 +31,7 @@
     .file-name { font-size: 0.8rem; color: var(--accent); font-weight: 500; margin-top: 0.5rem; word-break: break-all; }
     input[type="file"] { display: none; }
     .presets { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 1.5rem; }
-    .preset-btn { font-family: 'Inter', sans-serif; font-size: 0.75rem; font-weight: 500; padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface2); color: var(--text-sub); cursor: pointer; transition: all 0.1s; }
+    .preset-btn { font-family: 'Comfortaa', sans-serif; font-size: 0.75rem; font-weight: 500; padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface2); color: var(--text-sub); cursor: pointer; transition: all 0.1s; }
     .preset-btn:hover { border-color: var(--accent-border); color: var(--text); }
     .preset-btn.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
     .action-btn { border-color: var(--border); color: var(--text-sub); }
@@ -53,7 +53,7 @@
     .sliders-col { flex: 1; }
     .slider-row { display: flex; align-items: center; gap: 12px; margin-bottom: 1.1rem; }
     .slider-row:last-child { margin-bottom: 0; }
-    .slider-row label { font-size: 0.8rem; color: var(--text-sub); min-width: 52px; }
+    .slider-row label { font-size: 0.8rem; color: var(--text-sub); min-width: 72px; }
     .slider-val { font-size: 0.8rem; font-weight: 500; color: var(--text); min-width: 46px; text-align: right; }
     .volume-col { display: flex; flex-direction: column; align-items: center; justify-content: space-between; gap: 6px; padding: 2px 0; }
     .vol-label { font-size: 0.65rem; color: var(--text-muted); letter-spacing: 0.06em; text-transform: uppercase; }
@@ -183,6 +183,10 @@
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     const ab = await file.arrayBuffer();
     buffer = await audioCtx.decodeAudioData(ab);
+    originalBuffer = buffer; // keep clean copy for bitcrush processing
+    bitcrushAmount = 0;
+    document.getElementById('bitcrushSlider').value = 0;
+    document.getElementById('bitcrushVal').textContent = '0%';
     reverbBuffer = createReverbBuffer(audioCtx);
     buildGraph();
     playBtn.disabled = false;
@@ -236,12 +240,10 @@
     dryNode = audioCtx.createGain(); dryNode.gain.value = 1 - reverbAmount / 100;
     wetNode = audioCtx.createGain(); wetNode.gain.value = reverbAmount / 100;
 
-    // Lo-fi quality degradation: high-shelf cut simulates bandwidth loss of low-bitrate audio
-    // At 0% = flat (full quality), at 100% = heavy rolloff above ~2kHz (sounds like 32kbps)
-    bitcrushNode = audioCtx.createBiquadFilter();
-    bitcrushNode.type = 'highshelf';
-    bitcrushNode.frequency.value = 3000;
-    bitcrushNode.gain.value = bitcrushCutGain(bitcrushAmount);
+    // Bitcrush node is a simple passthrough gain — actual processing is done offline
+    // via resampleBitcrush() when the slider changes, which swaps the buffer
+    bitcrushNode = audioCtx.createGain();
+    bitcrushNode.gain.value = 1;
 
     gainNode.connect(bassFilter);
     bassFilter.connect(bitcrushNode);
@@ -366,16 +368,55 @@
     clearPresets();
   }
 
-  function bitcrushCutGain(pct) {
-    // 0% = 0dB cut (no effect), 100% = -30dB cut above 3kHz (sounds lo-fi/low bitrate)
-    return -(pct / 100) * 30;
+  // Offline bitcrush: speed up by factor, then slow back down using OfflineAudioContext
+  // This introduces aliasing artifacts that sound like real bitcrushing
+  let originalBuffer = null; // always keep the clean original
+  let bitcrushTimer = null;
+
+  async function resampleBitcrush(pct) {
+    if (!originalBuffer) return;
+    if (pct === 0) { buffer = originalBuffer; if (isPlaying) { const pos = pausedAt; stopAudio(); startAudio(pos); } return; }
+
+    status.textContent = 'Processing...';
+
+    // Factor: at 100% we use 12x (heavy), at 1% we use 1.5x (subtle)
+    const factor = 1 + (pct / 100) * 11;
+    const sr = originalBuffer.sampleRate;
+    const numCh = originalBuffer.numberOfChannels;
+    const origLen = originalBuffer.length;
+
+    // Step 1: render sped-up version at reduced effective sample rate
+    const smallLen = Math.ceil(origLen / factor);
+    const offCtx1 = new OfflineAudioContext(numCh, smallLen, sr);
+    const src1 = offCtx1.createBufferSource();
+    src1.buffer = originalBuffer;
+    src1.playbackRate.value = factor;
+    src1.connect(offCtx1.destination);
+    src1.start();
+    const fastBuf = await offCtx1.startRendering();
+
+    // Step 2: render slowed back down to original length — this is where aliasing happens
+    const offCtx2 = new OfflineAudioContext(numCh, origLen, sr);
+    const src2 = offCtx2.createBufferSource();
+    src2.buffer = fastBuf;
+    src2.playbackRate.value = 1 / factor;
+    src2.connect(offCtx2.destination);
+    src2.start();
+    const crushedBuf = await offCtx2.startRendering();
+
+    buffer = crushedBuf;
+    status.textContent = isPlaying ? 'Playing' : 'Ready — hit play';
+
+    if (isPlaying) { const pos = pausedAt; stopAudio(); startAudio(pos); }
   }
 
   function updateBitcrush(val) {
     bitcrushAmount = parseInt(val);
     document.getElementById('bitcrushVal').textContent = bitcrushAmount + '%';
-    if (bitcrushNode) bitcrushNode.gain.value = bitcrushCutGain(bitcrushAmount);
     clearPresets();
+    // Debounce so we don't reprocess on every slider tick
+    clearTimeout(bitcrushTimer);
+    bitcrushTimer = setTimeout(() => resampleBitcrush(bitcrushAmount), 400);
   }
 
   let savedPresets = JSON.parse(localStorage.getItem('lc_presets') || '[]');
