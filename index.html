@@ -50,14 +50,6 @@
     .slider-row:last-child { margin-bottom: 0; }
     .slider-row label { font-size: 0.8rem; color: var(--text-sub); min-width: 52px; }
     .slider-val { font-size: 0.8rem; font-weight: 500; color: var(--text); min-width: 46px; text-align: right; }
-    /* EQ section */
-    .eq-group { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; margin-bottom: 1.1rem; }
-    .eq-title { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
-    .eq-row { display: flex; align-items: center; gap: 10px; margin-bottom: 7px; }
-    .eq-row:last-child { margin-bottom: 0; }
-    .eq-row label { font-size: 0.75rem; color: var(--text-sub); min-width: 28px; }
-    .eq-val { font-size: 0.75rem; font-weight: 500; color: var(--text); min-width: 42px; text-align: right; }
-    /* Vertical volume */
     .volume-col { display: flex; flex-direction: column; align-items: center; justify-content: space-between; gap: 6px; padding: 2px 0; }
     .vol-label { font-size: 0.65rem; color: var(--text-muted); letter-spacing: 0.06em; text-transform: uppercase; }
     .vol-icon { font-size: 0.95rem; }
@@ -124,7 +116,12 @@
           <span class="slider-val" id="reverbVal">0%</span>
         </div>
         <div class="slider-row">
-          <label>Muffle</label>
+          <label>Bass</label>
+          <input type="range" class="horizontal" id="bassSlider" min="-20" max="20" step="1" value="0" oninput="updateBass(this.value)">
+          <span class="slider-val" id="bassVal">0 dB</span>
+        </div>
+        <div class="slider-row">
+          <label>Underwater</label>
           <input type="range" class="horizontal" id="muffleSlider" min="0" max="100" step="1" value="0" oninput="updateMuffle(this.value)">
           <span class="slider-val" id="muffleVal">0%</span>
         </div>
@@ -133,25 +130,10 @@
           <input type="range" class="horizontal" id="delaySlider" min="0" max="100" step="1" value="0" oninput="updateDelay(this.value)">
           <span class="slider-val" id="delayVal">0%</span>
         </div>
-
-        <!-- EQ group replacing single bass slider -->
-        <div class="eq-group">
-          <div class="eq-title">EQ</div>
-          <div class="eq-row">
-            <label>Low</label>
-            <input type="range" class="horizontal" id="bassLow" min="-20" max="20" step="1" value="0" oninput="updateEQ()">
-            <span class="eq-val" id="bassLowVal">0 dB</span>
-          </div>
-          <div class="eq-row">
-            <label>Mid</label>
-            <input type="range" class="horizontal" id="bassMid" min="-20" max="20" step="1" value="0" oninput="updateEQ()">
-            <span class="eq-val" id="bassMidVal">0 dB</span>
-          </div>
-          <div class="eq-row">
-            <label>High</label>
-            <input type="range" class="horizontal" id="bassHigh" min="-20" max="20" step="1" value="0" oninput="updateEQ()">
-            <span class="eq-val" id="bassHighVal">0 dB</span>
-          </div>
+        <div class="slider-row">
+          <label>Bitcrush</label>
+          <input type="range" class="horizontal" id="bitcrushSlider" min="0" max="100" step="1" value="0" oninput="updateBitcrush(this.value)">
+          <span class="slider-val" id="bitcrushVal">0%</span>
         </div>
       </div>
     </div>
@@ -163,10 +145,11 @@
 <footer>livechangermusic.com</footer>
 
 <script>
-  let audioCtx, sourceNode, gainNode, lowFilter, midFilter, highFilter, muffleFilter, convolverNode, dryNode, wetNode, delayNode, delayFeedback, delayWet, delayDry, buffer;
+  let audioCtx, sourceNode, gainNode, bassFilter, muffleFilter, convolverNode, dryNode, wetNode, delayNode, delayFeedback, delayWet, delayDry, buffer;
   let isPlaying = false, startedAt = 0, pausedAt = 0;
-  let speed = 1, reverbAmount = 0, lowGain = 0, midGain = 0, highGain = 0, muffleAmount = 0, delayAmount = 0, userVolume = 0.5;
+  let speed = 1, reverbAmount = 0, bassGain = 0, muffleAmount = 0, delayAmount = 0, userVolume = 0.5, bitcrushAmount = 0;
   let reverbBuffer = null, animFrame, isSeeking = false;
+  let bitcrushNode = null;
 
   const playBtn = document.getElementById('playBtn');
   const progressBar = document.getElementById('progressBar');
@@ -224,8 +207,8 @@
 
   function effectiveGain() {
     const base = userVolume * 2.0;
-    const reverbBoost = (reverbAmount / 100) * 0.9;
-    const muffleBoost = (muffleAmount / 100) * 0.9;
+    const reverbBoost = (reverbAmount / 100) * 0.8;
+    const muffleBoost = (muffleAmount / 100) * 0.8;
     return Math.min(base + reverbBoost + muffleBoost, 3.5);
   }
 
@@ -233,22 +216,10 @@
     gainNode = audioCtx.createGain();
     gainNode.gain.value = effectiveGain();
 
-    // 3-band EQ
-    lowFilter = audioCtx.createBiquadFilter();
-    lowFilter.type = 'lowshelf';
-    lowFilter.frequency.value = 250;
-    lowFilter.gain.value = lowGain;
-
-    midFilter = audioCtx.createBiquadFilter();
-    midFilter.type = 'peaking';
-    midFilter.frequency.value = 1000;
-    midFilter.Q.value = 0.8;
-    midFilter.gain.value = midGain;
-
-    highFilter = audioCtx.createBiquadFilter();
-    highFilter.type = 'highshelf';
-    highFilter.frequency.value = 4000;
-    highFilter.gain.value = highGain;
+    bassFilter = audioCtx.createBiquadFilter();
+    bassFilter.type = 'lowshelf';
+    bassFilter.frequency.value = 150;
+    bassFilter.gain.value = bassGain;
 
     muffleFilter = audioCtx.createBiquadFilter();
     muffleFilter.type = 'lowpass';
@@ -264,11 +235,23 @@
     dryNode = audioCtx.createGain(); dryNode.gain.value = 1 - reverbAmount / 100;
     wetNode = audioCtx.createGain(); wetNode.gain.value = reverbAmount / 100;
 
-    // Chain: gain → low → mid → high → muffle → delay/reverb → out
-    gainNode.connect(lowFilter);
-    lowFilter.connect(midFilter);
-    midFilter.connect(highFilter);
-    highFilter.connect(muffleFilter);
+    // Bitcrusher via ScriptProcessor — reduces bit depth for lo-fi crunch
+    const bufSize = 4096;
+    bitcrushNode = audioCtx.createScriptProcessor(bufSize, 2, 2);
+    bitcrushNode.onaudioprocess = (e) => {
+      const steps = Math.pow(2, Math.round(1 + (1 - bitcrushAmount / 100) * 13)); // 2-bit to 14-bit
+      for (let c = 0; c < e.inputBuffer.numberOfChannels; c++) {
+        const input = e.inputBuffer.getChannelData(c);
+        const output = e.outputBuffer.getChannelData(c);
+        for (let i = 0; i < input.length; i++) {
+          output[i] = bitcrushAmount === 0 ? input[i] : Math.round(input[i] * steps) / steps;
+        }
+      }
+    };
+
+    gainNode.connect(bassFilter);
+    bassFilter.connect(bitcrushNode);
+    bitcrushNode.connect(muffleFilter);
     muffleFilter.connect(delayDry);
     muffleFilter.connect(delayNode);
     delayNode.connect(delayFeedback);
@@ -367,16 +350,10 @@
     clearPresets();
   }
 
-  function updateEQ() {
-    lowGain = parseInt(document.getElementById('bassLow').value);
-    midGain = parseInt(document.getElementById('bassMid').value);
-    highGain = parseInt(document.getElementById('bassHigh').value);
-    document.getElementById('bassLowVal').textContent = (lowGain >= 0 ? '+' : '') + lowGain + ' dB';
-    document.getElementById('bassMidVal').textContent = (midGain >= 0 ? '+' : '') + midGain + ' dB';
-    document.getElementById('bassHighVal').textContent = (highGain >= 0 ? '+' : '') + highGain + ' dB';
-    if (lowFilter) lowFilter.gain.value = lowGain;
-    if (midFilter) midFilter.gain.value = midGain;
-    if (highFilter) highFilter.gain.value = highGain;
+  function updateBass(val) {
+    bassGain = parseInt(val);
+    document.getElementById('bassVal').textContent = (bassGain >= 0 ? '+' : '') + bassGain + ' dB';
+    if (bassFilter) bassFilter.gain.value = bassGain;
     clearPresets();
   }
 
@@ -395,24 +372,30 @@
     clearPresets();
   }
 
+  function updateBitcrush(val) {
+    bitcrushAmount = parseInt(val);
+    document.getElementById('bitcrushVal').textContent = bitcrushAmount + '%';
+    // bitcrushNode processes live via onaudioprocess, no extra update needed
+    clearPresets();
+  }
+
   function applyPreset(name, e) {
     const presets = {
-      normal:    { speed: 1,    reverb: 0,  low: 0,  mid: 0,  high: 0,  muffle: 0,  delay: 0  },
-      slowed:    { speed: 0.75, reverb: 45, low: 3,  mid: 0,  high: 0,  muffle: 0,  delay: 0  },
-      nightcore: { speed: 1.30, reverb: 10, low: 0,  mid: 0,  high: 2,  muffle: 0,  delay: 0  },
-      lofi:      { speed: 0.90, reverb: 30, low: 4,  mid: -2, high: -3, muffle: 20, delay: 0  },
-      tunnel:    { speed: 1,    reverb: 70, low: -3, mid: 0,  high: 0,  muffle: 55, delay: 15 },
-      echo:      { speed: 1,    reverb: 20, low: 0,  mid: 0,  high: 0,  muffle: 0,  delay: 65 },
+      normal:    { speed: 1,    reverb: 0,  bass: 0,  muffle: 0,  delay: 0,  bitcrush: 0  },
+      slowed:    { speed: 0.75, reverb: 45, bass: 3,  muffle: 0,  delay: 0,  bitcrush: 0  },
+      nightcore: { speed: 1.30, reverb: 10, bass: 0,  muffle: 0,  delay: 0,  bitcrush: 0  },
+      lofi:      { speed: 0.90, reverb: 30, bass: 5,  muffle: 20, delay: 0,  bitcrush: 30 },
+      tunnel:    { speed: 1,    reverb: 70, bass: -3, muffle: 55, delay: 15, bitcrush: 0  },
+      echo:      { speed: 1,    reverb: 20, bass: 0,  muffle: 0,  delay: 65, bitcrush: 0  },
     };
     const p = presets[name];
     document.getElementById('speedSlider').value = p.speed;
     document.getElementById('reverbSlider').value = p.reverb;
-    document.getElementById('bassLow').value = p.low;
-    document.getElementById('bassMid').value = p.mid;
-    document.getElementById('bassHigh').value = p.high;
+    document.getElementById('bassSlider').value = p.bass;
     document.getElementById('muffleSlider').value = p.muffle;
     document.getElementById('delaySlider').value = p.delay;
-    updateSpeed(p.speed); updateReverb(p.reverb); updateEQ(); updateMuffle(p.muffle); updateDelay(p.delay);
+    document.getElementById('bitcrushSlider').value = p.bitcrush;
+    updateSpeed(p.speed); updateReverb(p.reverb); updateBass(p.bass); updateMuffle(p.muffle); updateDelay(p.delay); updateBitcrush(p.bitcrush);
     document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
     e.target.classList.add('active');
   }
