@@ -235,16 +235,28 @@
     dryNode = audioCtx.createGain(); dryNode.gain.value = 1 - reverbAmount / 100;
     wetNode = audioCtx.createGain(); wetNode.gain.value = reverbAmount / 100;
 
-    // Bitcrusher via ScriptProcessor — reduces bit depth for lo-fi crunch
-    const bufSize = 4096;
+    // Bitcrusher: sample rate reduction (hold samples) + bit depth reduction combined
+    const bufSize = 2048;
     bitcrushNode = audioCtx.createScriptProcessor(bufSize, 2, 2);
     bitcrushNode.onaudioprocess = (e) => {
-      const steps = Math.pow(2, Math.round(1 + (1 - bitcrushAmount / 100) * 13)); // 2-bit to 14-bit
+      if (bitcrushAmount === 0) {
+        for (let c = 0; c < e.inputBuffer.numberOfChannels; c++) {
+          e.outputBuffer.getChannelData(c).set(e.inputBuffer.getChannelData(c));
+        }
+        return;
+      }
+      // sample rate reduction: hold each sample for 'step' frames
+      const step = Math.max(1, Math.floor(1 + (bitcrushAmount / 100) * 40));
+      // bit depth: 16 bits down to ~3 bits
+      const bits = Math.max(3, Math.round(16 - (bitcrushAmount / 100) * 13));
+      const steps = Math.pow(2, bits);
       for (let c = 0; c < e.inputBuffer.numberOfChannels; c++) {
         const input = e.inputBuffer.getChannelData(c);
         const output = e.outputBuffer.getChannelData(c);
+        let held = 0;
         for (let i = 0; i < input.length; i++) {
-          output[i] = bitcrushAmount === 0 ? input[i] : Math.round(input[i] * steps) / steps;
+          if (i % step === 0) held = Math.round(input[i] * steps) / steps;
+          output[i] = held;
         }
       }
     };
