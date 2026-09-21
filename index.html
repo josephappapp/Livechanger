@@ -235,31 +235,12 @@
     dryNode = audioCtx.createGain(); dryNode.gain.value = 1 - reverbAmount / 100;
     wetNode = audioCtx.createGain(); wetNode.gain.value = reverbAmount / 100;
 
-    // Bitcrusher: sample rate reduction (hold samples) + bit depth reduction combined
-    const bufSize = 2048;
-    bitcrushNode = audioCtx.createScriptProcessor(bufSize, 2, 2);
-    bitcrushNode.onaudioprocess = (e) => {
-      if (bitcrushAmount === 0) {
-        for (let c = 0; c < e.inputBuffer.numberOfChannels; c++) {
-          e.outputBuffer.getChannelData(c).set(e.inputBuffer.getChannelData(c));
-        }
-        return;
-      }
-      // sample rate reduction: hold each sample for 'step' frames
-      const step = Math.max(1, Math.floor(1 + (bitcrushAmount / 100) * 40));
-      // bit depth: 16 bits down to ~3 bits
-      const bits = Math.max(3, Math.round(16 - (bitcrushAmount / 100) * 13));
-      const steps = Math.pow(2, bits);
-      for (let c = 0; c < e.inputBuffer.numberOfChannels; c++) {
-        const input = e.inputBuffer.getChannelData(c);
-        const output = e.outputBuffer.getChannelData(c);
-        let held = 0;
-        for (let i = 0; i < input.length; i++) {
-          if (i % step === 0) held = Math.round(input[i] * steps) / steps;
-          output[i] = held;
-        }
-      }
-    };
+    // Bitcrusher: WaveShaper that quantizes amplitude into discrete steps
+    // makeBitcrushCurve builds a staircase transfer function — the fewer steps,
+    // the more aggressive the quantization noise / crunch
+    bitcrushNode = audioCtx.createWaveShaper();
+    bitcrushNode.curve = makeBitcrushCurve(bitcrushAmount);
+    bitcrushNode.oversample = 'none';
 
     gainNode.connect(bassFilter);
     bassFilter.connect(bitcrushNode);
@@ -384,10 +365,25 @@
     clearPresets();
   }
 
+  // Staircase transfer function: quantizes signal into N steps
+  // At 0% = 256 steps (basically clean), at 100% = 2 steps (full square wave)
+  function makeBitcrushCurve(pct) {
+    const n = 65536;
+    const curve = new Float32Array(n);
+    const steps = Math.max(2, Math.round(256 - (pct / 100) * 254));
+    for (let i = 0; i < n; i++) {
+      const x = (i * 2) / n - 1;
+      curve[i] = Math.round(x * steps) / steps;
+    }
+    return curve;
+  }
+
   function updateBitcrush(val) {
     bitcrushAmount = parseInt(val);
     document.getElementById('bitcrushVal').textContent = bitcrushAmount + '%';
-    // bitcrushNode processes live via onaudioprocess, no extra update needed
+    if (bitcrushNode) {
+      bitcrushNode.curve = makeBitcrushCurve(bitcrushAmount);
+    }
     clearPresets();
   }
 
