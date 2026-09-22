@@ -11,6 +11,7 @@
       --font: 'Courier New', Courier, monospace;
       --c1: #5ab0ff; --c2: #1a6fd4; --c3: #0d50b0;
       --glow: rgba(30,120,255,0.6);
+      --track-rgb: 150,190,230;
       --bg-from: #c8dff5; --bg-to: #a8c8e8;
       --text: #0a1a2e; --text-sub: rgba(10,30,60,0.65); --text-muted: rgba(10,30,60,0.4);
     }
@@ -21,6 +22,7 @@
       background-attachment: fixed;
       display: flex; flex-direction: column; align-items: center;
       padding: 2rem 1rem 6rem; position: relative; transition: background 1s ease;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.35);
     }
 
     #bgLayer {
@@ -100,11 +102,13 @@
     .glass-btn.blue:hover { box-shadow: 0 0 20px var(--glow), 0 2px 8px rgba(20,80,200,0.5), 0 1px 0 rgba(255,255,255,0.4) inset; filter: brightness(1.15); }
     .glass-btn.green { background: linear-gradient(180deg,#80e060,#3ab020 45%,#259010 50%,#3ab020); color:#fff; box-shadow:0 2px 8px rgba(30,130,10,0.4),0 1px 0 rgba(255,255,255,0.3) inset; border-color:rgba(20,100,0,0.6); }
     .glass-btn.green:hover { box-shadow:0 0 20px rgba(60,200,20,0.7),0 2px 8px rgba(30,130,10,0.5),0 1px 0 rgba(255,255,255,0.4) inset; filter:brightness(1.15); }
-    .glass-btn.gold { background: linear-gradient(180deg,#ffe060,#d4a010 45%,#b08000 50%,#d4a010); color:#3a2000; box-shadow:0 2px 8px rgba(160,120,0,0.4),0 1px 0 rgba(255,255,255,0.3) inset; border-color:rgba(120,80,0,0.6); }
-    .glass-btn.gold:hover { box-shadow:0 0 20px rgba(255,200,0,0.7),0 2px 8px rgba(160,120,0,0.5),0 1px 0 rgba(255,255,255,0.4) inset; filter:brightness(1.15); }
+    .glass-btn.gold { background: linear-gradient(180deg,#f0b830,#c07800 45%,#8f5500 50%,#c07800); color:#fff; box-shadow:0 2px 8px rgba(140,90,0,0.5),0 1px 0 rgba(255,255,255,0.25) inset; border-color:rgba(100,60,0,0.7); text-shadow:0 1px 2px rgba(0,0,0,0.5); }
+    .glass-btn.gold:hover { box-shadow:0 0 20px rgba(220,140,0,0.8),0 2px 8px rgba(140,90,0,0.6),0 1px 0 rgba(255,255,255,0.3) inset; filter:brightness(1.15); }
     .glass-btn.red { background: linear-gradient(180deg,#ff8060,#d43020 45%,#b02010 50%,#d43020); color:#fff; box-shadow:0 2px 8px rgba(180,30,10,0.4),0 1px 0 rgba(255,255,255,0.3) inset; border-color:rgba(140,20,0,0.6); }
     .glass-btn.red:hover { box-shadow:0 0 20px rgba(255,60,20,0.7),0 2px 8px rgba(180,30,10,0.5),0 1px 0 rgba(255,255,255,0.4) inset; filter:brightness(1.15); }
     .glass-btn.purple { background: linear-gradient(180deg,#c080ff,#7a30d4 45%,#5a10b0 50%,#7a30d4); color:#fff; box-shadow:0 2px 8px rgba(100,20,180,0.4),0 1px 0 rgba(255,255,255,0.3) inset; border-color:rgba(80,10,140,0.6); }
+    .glass-btn.black { background: linear-gradient(180deg,rgba(80,80,80,0.7),rgba(20,20,20,0.85) 45%,rgba(5,5,5,0.9) 50%,rgba(20,20,20,0.85)); color:rgba(255,255,255,0.9); box-shadow:0 2px 8px rgba(0,0,0,0.5),0 1px 0 rgba(255,255,255,0.15) inset; border-color:rgba(255,255,255,0.2); }
+    .glass-btn.black:hover { box-shadow:0 0 16px rgba(255,255,255,0.2),0 2px 8px rgba(0,0,0,0.6),0 1px 0 rgba(255,255,255,0.2) inset; filter:brightness(1.25); }
     .glass-btn.purple:hover { box-shadow:0 0 20px rgba(180,60,255,0.7),0 2px 8px rgba(100,20,180,0.5); filter:brightness(1.15); }
 
     .saved-preset { position: relative; padding-right: 24px; }
@@ -157,8 +161,8 @@
     input[type="range"].horizontal { -webkit-appearance:none; width:100%; height:5px; border-radius:3px; outline:none; cursor:pointer; background:linear-gradient(180deg,rgba(150,190,230,0.5),rgba(200,225,255,0.7)); border:1px solid rgba(255,255,255,0.6); box-shadow:inset 0 1px 2px rgba(0,0,0,0.12); }
     input[type="range"].horizontal::-webkit-slider-thumb { -webkit-appearance:none; width:16px; height:16px; border-radius:50%; background:radial-gradient(circle at 38% 32%,#fff 0%,#aad4ff 40%,var(--c2) 100%); cursor:pointer; border:1px solid rgba(10,60,160,0.4); box-shadow:0 2px 6px rgba(20,80,200,0.5),0 0 8px rgba(30,120,255,0.3),0 1px 0 rgba(255,255,255,0.8) inset; transition:transform 0.1s,box-shadow 0.1s; }
     input[type="range"].horizontal::-webkit-slider-thumb:hover { transform:scale(1.25); box-shadow:0 0 14px var(--glow),0 2px 6px rgba(20,80,200,0.6),0 1px 0 rgba(255,255,255,0.8) inset; }
-    input[type="range"].vertical { -webkit-appearance:slider-vertical; writing-mode:vertical-lr; direction:rtl; width:5px; height:150px; padding:0; cursor:pointer; outline:none; background:linear-gradient(90deg,rgba(150,190,230,0.5),rgba(200,225,255,0.7)); border:1px solid rgba(255,255,255,0.6); border-radius:3px; box-shadow:inset 0 1px 2px rgba(0,0,0,0.12); flex-shrink:0; }
-    input[type="range"].vertical::-webkit-slider-thumb { -webkit-appearance:none; width:16px; height:16px; border-radius:50%; background:radial-gradient(circle at 38% 32%,#fff 0%,#aad4ff 40%,var(--c2) 100%); cursor:pointer; border:1px solid rgba(10,60,160,0.4); box-shadow:0 2px 6px rgba(20,80,200,0.5),0 0 8px rgba(30,120,255,0.3),0 1px 0 rgba(255,255,255,0.8) inset; }
+    input[type="range"].vertical { -webkit-appearance:slider-vertical; writing-mode:vertical-lr; direction:rtl; width:5px; height:150px; padding:0; cursor:pointer; outline:none; background:linear-gradient(90deg,rgba(var(--track-rgb),0.4),rgba(var(--track-rgb),0.7)); border:1px solid rgba(255,255,255,0.6); border-radius:3px; box-shadow:inset 0 1px 2px rgba(0,0,0,0.12); flex-shrink:0; }
+    input[type="range"].vertical::-webkit-slider-thumb { -webkit-appearance:none; width:16px; height:16px; border-radius:50%; background:radial-gradient(circle at 38% 32%,#fff 0%,var(--c1) 40%,var(--c2) 100%); cursor:pointer; border:1px solid rgba(0,0,0,0.2); box-shadow:0 2px 6px var(--glow),0 0 8px var(--glow),0 1px 0 rgba(255,255,255,0.8) inset; }
 
     .divider { border:none; height:1px; margin:0 0 1.2rem; background:linear-gradient(90deg,transparent,rgba(100,160,220,0.4),transparent); }
 
@@ -205,9 +209,9 @@
   <input type="file" id="fileInput" accept="audio/*">
 
   <div class="actions-row" id="actionsRow">
-    <button class="glass-btn blue" onclick="resetSliders()">Reset</button>
+    <button class="glass-btn black" onclick="resetSliders()">Reset</button>
     <button class="glass-btn gold" onclick="randomizeSliders()">Randomize</button>
-    <button class="glass-btn green" onclick="savePreset()">+ Save Preset</button>
+    <button class="glass-btn black" onclick="savePreset()">+ Save Preset</button>
   </div>
 
   <div class="toggles-row">
@@ -353,7 +357,11 @@
     r.style.setProperty('--c2',t.c2);
     r.style.setProperty('--c3',t.c3);
     r.style.setProperty('--glow',t.glow);
-    // Update only the .blue buttons and play button gradient inline
+    // Derive RGB values from c2 for track color
+    const hex=t.c2.replace('#','');
+    const tr=parseInt(hex.slice(0,2),16),tg=parseInt(hex.slice(2,4),16),tb=parseInt(hex.slice(4,6),16);
+    r.style.setProperty('--track-rgb',`${tr},${tg},${tb}`);
+    // Update blue buttons and play button
     const grad=`linear-gradient(180deg,${t.c1} 0%,${t.c2} 45%,${t.c3} 50%,${t.c2} 100%)`;
     document.querySelectorAll('.glass-btn.blue').forEach(el=>el.style.background=grad);
     document.getElementById('playBtn').style.background=grad;
