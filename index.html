@@ -2,6 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0a1628">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>🎶 Livechanger</title>
   <style>
@@ -924,6 +928,11 @@
     document.querySelector('.card').style.background=`linear-gradient(160deg,rgba(255,255,255,${opacity+0.2}),rgba(200,225,255,${opacity}),rgba(180,215,255,${opacity*0.7}))`;
   }
 
+
+  // Register service worker for PWA
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('/sw.js').catch(()=>{});
+  }
 
   // Logo morph
   (function(){
