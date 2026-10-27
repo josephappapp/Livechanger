@@ -195,7 +195,7 @@
     .slider-row { display:flex; align-items:center; gap:10px; margin-bottom:1rem; }
     .slider-row:last-child { margin-bottom:0; }
     .slider-row label { font-size:0.75rem; color:var(--text-sub); min-width:72px; text-align:center; font-family:var(--font); }
-    .slider-val { font-size:0.75rem; font-weight:700; color:var(--c2); min-width:44px; text-align:right; font-family:var(--font); transition:color 0.8s; }
+    .slider-val { font-size:0.75rem; font-weight:700; color:var(--c2); min-width:52px; text-align:center; font-family:var(--font); transition:color 0.8s; }
 
     .volume-col { display:flex; flex-direction:column; align-items:center; justify-content:space-between; gap:6px; padding:2px 0; filter:grayscale(1) brightness(0.75); }
     .vol-label { font-size:0.6rem; color:rgba(255,255,255,0.6); letter-spacing:0.07em; text-transform:uppercase; font-family:var(--font); }
@@ -232,6 +232,7 @@
     .slider-row:last-child { margin-bottom:0; }
     input[type="range"] { -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; touch-action:none; }
     .ctrl-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); column-gap:14px; align-items:center; row-gap:6px; margin-top:0.3rem; }
+    @media (min-width:600px) { .ctrl-grid { column-gap:44px; } }
     .ctrl-grid .bg-btn { width:calc(100% - 40px); padding:5px 2px; font-size:0.6rem; white-space:nowrap; }
     .ctrl-grid .glass-ctrl, .ctrl-grid .sleep-ctrl, .ctrl-grid .vol-ctrl, .ctrl-grid .bg-cell { display:flex; align-items:center; gap:6px; min-width:0; }
     .ctrl-grid label { font-family:var(--font); font-size:0.6rem; color:rgba(255,255,255,0.85); text-shadow:0 1px 3px rgba(0,0,0,0.7); white-space:nowrap; flex-shrink:0; width:36px; min-width:36px; text-align:center; }
@@ -244,7 +245,7 @@
       background-clip: padding-box; border:1px solid rgba(10,60,160,0.6);
     }
     .play-btn::before { display:none; }
-    .cp-trigger { width:22px; height:22px; margin:0 6px; padding:0; flex-shrink:0; border-radius:50%; cursor:pointer;
+    .cp-trigger { width:22px; height:22px; margin:0 0 0 auto; padding:0; flex-shrink:0; border-radius:50%; cursor:pointer;
       border:1px solid rgba(255,255,255,0.75); box-shadow:0 1px 3px rgba(0,0,0,0.4), 0 1px 0 rgba(255,255,255,0.35) inset;
       background: radial-gradient(circle, var(--cp-color,#4a78c8) 0 50%, rgba(255,255,255,0.9) 52% 58%, transparent 60%), conic-gradient(#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00);
       transition: transform 0.15s, box-shadow 0.15s; }
@@ -296,7 +297,7 @@
   <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
     <div class="drop-icon" id="dropIcon">💽</div>
     <div class="drop-label" id="dropLabel">Drop songs or tap to browse</div>
-    <div class="drop-sub" id="dropSub">MP3 · WAV · FLAC · OGG · drop multiple for playlist</div>
+    <div class="drop-sub" id="dropSub">MP3, WAV, OGG, etc [drop multiple for playlist]</div>
     <div class="file-name" id="fileName"></div>
   </div>
   <input type="file" id="fileInput" accept="audio/*,.mp3,.m4a,.wav,.aac,.ogg,.flac,.mp4,audio/mpeg,audio/mp4,audio/x-m4a,audio/wav,audio/aac" multiple>
