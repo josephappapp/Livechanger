@@ -55,8 +55,8 @@
     }
     .wordmark .accent-word { color: var(--c1); transition: color 0.8s; text-shadow: 0 0 8px rgba(0,0,0,1), 0 2px 4px rgba(0,0,0,1), -1px -1px 0 rgba(0,0,0,0.8), 1px 1px 0 rgba(0,0,0,0.8); }
     .wordmark .morph-letter { display: inline-block; position: relative; color: #fff; min-width: 0.6em; }
-    .wordmark .morph-letter .from { display: inline-block; min-width: 0.6em; transition: opacity 0.6s; }
-    .wordmark .morph-letter .to { position: absolute; left: 0; top: 0; opacity: 0; transition: opacity 0.6s; }
+    .wordmark .morph-letter .from { display: inline-block; min-width: 0.6em; position: relative; z-index: 2; text-shadow: none; }
+    .wordmark .morph-letter .to { position: absolute; left: 0; top: 0; opacity: 1; z-index: 1; }
 
     .header-right { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
     .tagline { font-size: 0.68rem; color: rgba(255,255,255,0.85); text-shadow: 0 1px 4px rgba(0,0,0,0.8); }
@@ -231,12 +231,12 @@
     .slider-row { margin-bottom:0.5rem; }
     .slider-row:last-child { margin-bottom:0; }
     input[type="range"] { -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; touch-action:none; }
-    .ctrl-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); column-gap:14px; align-items:center; row-gap:6px; margin-top:0.3rem; }
-    @media (min-width:600px) { .ctrl-grid { column-gap:44px; } }
-    .ctrl-grid .bg-btn { width:calc(100% - 40px); padding:5px 2px; font-size:0.6rem; white-space:nowrap; }
+    .ctrl-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); column-gap:26px; align-items:center; row-gap:6px; margin-top:0.3rem; }
+    @media (min-width:600px) { .ctrl-grid { column-gap:84px; } }
+    .ctrl-grid .bg-btn { width:calc(100% - 36px); padding:5px 2px; font-size:0.6rem; white-space:nowrap; }
     .ctrl-grid .glass-ctrl, .ctrl-grid .sleep-ctrl, .ctrl-grid .vol-ctrl, .ctrl-grid .bg-cell { display:flex; align-items:center; gap:6px; min-width:0; }
-    .ctrl-grid label { font-family:var(--font); font-size:0.6rem; color:rgba(255,255,255,0.85); text-shadow:0 1px 3px rgba(0,0,0,0.7); white-space:nowrap; flex-shrink:0; width:36px; min-width:36px; text-align:center; }
-    .ctrl-grid .sleep-val, .ctrl-grid .vol-val, .ctrl-grid .fog-val { font-weight:400; font-family:var(--font); font-size:0.65rem; color:rgba(255,255,255,0.85); text-shadow:0 1px 3px rgba(0,0,0,0.7); min-width:34px; text-align:right; flex-shrink:0; }
+    .ctrl-grid label { font-family:var(--font); font-size:0.6rem; color:rgba(255,255,255,0.85); text-shadow:0 1px 3px rgba(0,0,0,0.7); white-space:nowrap; flex-shrink:0; width:32px; min-width:32px; text-align:center; }
+    .ctrl-grid .sleep-val, .ctrl-grid .vol-val, .ctrl-grid .fog-val { font-weight:400; font-family:var(--font); font-size:0.65rem; color:rgba(255,255,255,0.85); text-shadow:0 1px 3px rgba(0,0,0,0.7); min-width:30px; text-align:right; flex-shrink:0; }
     .ctrl-grid input[type=range] { flex:1; min-width:0; width:auto; }
     .play-btn {
       background:
@@ -245,6 +245,11 @@
       background-clip: padding-box; border:1px solid rgba(10,60,160,0.6);
     }
     .play-btn::before { display:none; }
+    .play-btn {
+      border:none; background-clip:border-box;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.3), 0 2px 8px rgba(0,0,0,0.25);
+    }
+    .play-btn:hover { box-shadow: inset 0 0 0 1px rgba(255,255,255,0.45), 0 0 22px var(--glow), 0 2px 8px rgba(0,0,0,0.25); }
     .cp-trigger { width:22px; height:22px; margin:0 0 0 auto; padding:0; flex-shrink:0; border-radius:50%; cursor:pointer;
       border:1px solid rgba(255,255,255,0.75); box-shadow:0 1px 3px rgba(0,0,0,0.4), 0 1px 0 rgba(255,255,255,0.35) inset;
       background: radial-gradient(circle, var(--cp-color,#4a78c8) 0 50%, rgba(255,255,255,0.9) 52% 58%, transparent 60%), conic-gradient(#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00);
@@ -359,9 +364,9 @@
       <hr class="divider" style="margin:1.4rem 0 1.2rem">
       <div class="ctrl-grid">
         <div class="glass-ctrl"><label>Fog</label><input type="range" class="horizontal" id="glassSlider" min="0" max="40" step="1" value="20" oninput="updateGlass(this.value)"><span class="fog-val" id="glassVal">50%</span></div>
-        <div class="sleep-ctrl"><label>Sleep</label><input type="range" class="horizontal" id="sleepSlider" min="0" max="60" step="any" data-step="5" value="0"><span class="sleep-val" id="sleepVal">Off</span></div>
-        <div class="bg-cell"><button class="glass-btn black bg-btn" onclick="document.getElementById('bgFileInput').click()">Change Background</button><button class="cp-trigger" id="cpTrigger" aria-label="Pick background color"></button></div>
         <div class="vol-ctrl"><label>Vol</label><input type="range" class="horizontal" id="volumeSlider" min="0" max="100" step="5" value="35" oninput="updateVolume(this.value)"><span class="vol-val" id="volVal">35%</span></div>
+        <div class="bg-cell"><button class="glass-btn black bg-btn" onclick="document.getElementById('bgFileInput').click()">Change Background</button><button class="cp-trigger" id="cpTrigger" aria-label="Pick background color"></button></div>
+        <div class="sleep-ctrl"><label>Sleep</label><input type="range" class="horizontal" id="sleepSlider" min="0" max="60" step="any" data-step="5" value="0"><span class="sleep-val" id="sleepVal">Off</span></div>
       </div>
     </div>
   </div>
@@ -1032,14 +1037,6 @@
     navigator.serviceWorker.register('/sw.js').catch(()=>{});
   }
 
-  // Logo morph
-  (function(){
-    const f=document.querySelector('.morph-letter .from'),t=document.querySelector('.morph-letter .to');
-    if(!f||!t)return;
-    function showF(){f.style.opacity='0';t.style.opacity='1';setTimeout(showV,1800);}
-    function showV(){f.style.opacity='1';t.style.opacity='0';setTimeout(showF,3500);}
-    setTimeout(showF,3500);
-  })();
 </script>
 <script>
   // Haptics: Android/WebView via vibrate; iOS Safari 17.4+ via hidden <input switch> toggled by label.click()
@@ -1200,6 +1197,42 @@
     window.addEventListener('resize',()=>{if(!pop.hidden)place();});
     $('cpReset').addEventListener('click',()=>{started=false;window.applyDefaultBg();pop.hidden=true;});
     render();
+  })();
+</script>
+<script>
+  // Lock-screen / headphone / Bluetooth / notification controls via the Media Session API
+  (function(){
+    if(!('mediaSession' in navigator))return;
+    const ms=navigator.mediaSession;
+    const on=(a,f)=>{try{ms.setActionHandler(a,f);}catch(e){}};
+    const bar=document.getElementById('progressBar');
+    const seekBy=sec=>{if(!buffer)return;seek(Math.max(0,Math.min(100,(+bar.value)+(sec/buffer.duration)*100)));};
+    on('play',()=>{if(!isPlaying)togglePlay();});
+    on('pause',()=>{if(isPlaying)togglePlay();});
+    on('stop',()=>{if(isPlaying)togglePlay();});
+    on('nexttrack',()=>nextTrack(false));
+    on('previoustrack',()=>prevTrack());
+    on('seekto',d=>{if(buffer&&d.seekTime!=null)seek(Math.max(0,Math.min(100,d.seekTime/buffer.duration*100)));});
+    on('seekforward',d=>seekBy(d.seekOffset||10));
+    on('seekbackward',d=>seekBy(-(d.seekOffset||10)));
+    function meta(){
+      const name=(document.getElementById('fileName').textContent||'Livechanger').replace(/\.[^.]+$/,'');
+      try{
+        ms.metadata=new MediaMetadata({title:name,artist:'Livechanger',album:'Livechanger',
+          artwork:[{src:'/icon192.png',sizes:'192x192',type:'image/png'},{src:'/icon512.png',sizes:'512x512',type:'image/png'}]});
+      }catch(e){}
+    }
+    new MutationObserver(meta).observe(document.getElementById('fileName'),{childList:true,characterData:true,subtree:true});
+    meta();
+    setInterval(()=>{
+      try{
+        ms.playbackState=isPlaying?'playing':'paused';
+        if(buffer&&ms.setPositionState){
+          const d=buffer.duration,pos=Math.max(0,Math.min(d,(+bar.value/100)*d));
+          ms.setPositionState({duration:d,playbackRate:speed||1,position:pos});
+        }
+      }catch(e){}
+    },1000);
   })();
 </script>
 </body>
