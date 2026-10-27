@@ -143,13 +143,13 @@
     /* Play bar */
     .play-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 1.4rem; }
     .play-btn {
-      width: 52px; height: 52px; border-radius: 50%;
+      box-sizing: border-box; width: 52px; height: 52px; min-width: 52px; min-height: 52px; aspect-ratio: 1 / 1; border-radius: 50%;
       background: linear-gradient(180deg, var(--c1) 0%, rgba(26,111,212,0.8) 45%, rgba(13,80,176,0.85) 50%, rgba(26,111,212,0.8) 100%);
       border: 1px solid rgba(10,60,160,0.5); color:#fff;
       display: flex; align-items: center; justify-content: center;
       cursor: pointer; transition: all 0.15s; flex-shrink: 0;
       box-shadow: none;
-      position: relative; overflow: hidden;
+      position: relative; overflow: visible; isolation: isolate;
       /* fix: use padding-left to optically center the play triangle */
       padding: 0;
     }
@@ -160,7 +160,7 @@
       font-size: 1.2rem; line-height: 1;
     }
     .play-btn.playing .btn-icon { padding-left: 0; font-weight:900; letter-spacing:-1px; font-size:0.85rem; } /* ⏸ is symmetric */
-    .play-btn::before { content:''; position:absolute; top:0; left:0; right:0; height:50%; background:linear-gradient(180deg,rgba(255,255,255,0.4),rgba(255,255,255,0.05)); border-radius:50% 50% 0 0; pointer-events:none; }
+    .play-btn::before { content:''; position:absolute; top:0; left:0; right:0; height:50%; background:linear-gradient(180deg,rgba(255,255,255,0.4),rgba(255,255,255,0.05)); border-radius:50px 50px 0 0; pointer-events:none; }
     .play-btn:hover { box-shadow:0 0 22px var(--glow),0 4px 12px rgba(20,80,200,0.5),0 1px 0 rgba(255,255,255,0.4) inset; }
     .play-btn:disabled { opacity:0.4; cursor:not-allowed; }
 
@@ -208,7 +208,7 @@
     .playlist-item.active { background:rgba(var(--c2-rgb,26,111,212),0.2); color:var(--c1); font-weight:600; }
 
     footer { margin-top:1.5rem; font-size:0.65rem; color:rgba(255,255,255,0.85); text-align:center; font-family:var(--font); letter-spacing:0.05em; text-shadow:0 1px 3px rgba(0,0,0,0.7); }
-    .glass-ctrl { position:fixed; bottom:56px; left:20px; z-index:10; display:flex; align-items:center; gap:6px; }
+    .glass-ctrl { position:fixed; bottom:40px; left:20px; z-index:10; display:flex; align-items:center; gap:6px; }
     .glass-ctrl label { font-family:var(--font); font-size:0.6rem; color:rgba(255,255,255,0.85); text-shadow:0 1px 3px rgba(0,0,0,0.7); white-space:nowrap; flex-shrink:0; }
     .glass-ctrl input[type=range] { flex:1; min-width:0; width:auto; }
 
@@ -238,6 +238,10 @@
     .vol-ctrl .vol-icon { font-size:0.8rem; flex-shrink:0; }
     .vol-ctrl .vol-val { font-family:var(--font); font-size:0.65rem; color:rgba(255,255,255,0.85); text-shadow:0 1px 3px rgba(0,0,0,0.7); min-width:30px; text-align:right; flex-shrink:0; }
     .vol-ctrl input[type=range] { flex:1; min-width:0; width:auto; }
+    .sleep-ctrl { position:fixed; bottom:40px; right:20px; z-index:10; display:flex; align-items:center; gap:6px; width:150px; }
+    .sleep-ctrl label { font-family:var(--font); font-size:0.6rem; color:rgba(255,255,255,0.85); text-shadow:0 1px 3px rgba(0,0,0,0.7); white-space:nowrap; flex-shrink:0; }
+    .sleep-ctrl .sleep-val { font-family:var(--font); font-size:0.65rem; color:rgba(255,255,255,0.85); text-shadow:0 1px 3px rgba(0,0,0,0.7); min-width:34px; text-align:right; flex-shrink:0; }
+    .sleep-ctrl input[type=range] { flex:1; min-width:0; width:auto; }
     header { padding-top:calc(env(safe-area-inset-top,0px) * 0.45); }
   </style>
 </head>
@@ -327,6 +331,11 @@
 <div class="glass-ctrl">
   <label>Fog</label>
   <input type="range" class="horizontal" id="glassSlider" min="0" max="40" step="1" value="20" oninput="updateGlass(this.value)">
+</div>
+<div class="sleep-ctrl">
+  <label>Sleep</label>
+  <input type="range" class="horizontal" id="sleepSlider" min="0" max="60" step="any" data-step="5" value="0">
+  <span class="sleep-val" id="sleepVal">Off</span>
 </div>
 <div class="vol-ctrl">
   <span class="vol-icon">🔊</span>
@@ -545,7 +554,8 @@
     return rb;
   }
   function muffleFreq(pct){return pct===0?20000:20000*Math.pow(300/20000,pct/100);}
-  function effectiveGain(){return Math.min(userVolume*2+(reverbAmount/100)*0.8+(muffleAmount/100)*0.8,3.5);}
+  let sleepFade=1;
+  function effectiveGain(){return Math.min(userVolume*2+(reverbAmount/100)*0.8+(muffleAmount/100)*0.8,3.5)*sleepFade;}
 
 
 
@@ -1050,7 +1060,7 @@
       const r=el.getBoundingClientRect(),vert=el.classList.contains('vertical'),pad=7;
       let f=vert?1-((t.clientY-r.top-pad)/(r.height-pad*2)):((t.clientX-r.left-pad)/(r.width-pad*2));
       f=Math.max(0,Math.min(1,f));
-      const min=+el.min,max=+el.max,step=+el.step||1;
+      const min=+el.min,max=+el.max,step=+el.dataset.step||+el.step||1;
       let v=Math.round((min+f*(max-min)-min)/step)*step+min;
       v=Math.max(min,Math.min(max,v));
       const dec=(String(step).split('.')[1]||'').length;
@@ -1069,6 +1079,41 @@
     function end(){if(active){active.dispatchEvent(new Event('change',{bubbles:true}));active=null;}}
     document.addEventListener('touchend',end);
     document.addEventListener('touchcancel',end);
+  })();
+</script>
+<script>
+  // Sleep timer: slider 0–60 min (5 min steps), counts down live, fades out over the last 30s, then pauses.
+  (function(){
+    const sl=document.getElementById('sleepSlider'),val=document.getElementById('sleepVal');
+    let end=null,dragging=false,timer=null;
+    const fmt=ms=>{const t=Math.max(0,Math.ceil(ms/1000));return Math.floor(t/60)+':'+String(t%60).padStart(2,'0');};
+    function stop(){
+      end=null;clearInterval(timer);timer=null;
+      sl.value=0;val.textContent='Off';
+      sleepFade=1;if(gainNode)gainNode.gain.value=effectiveGain();
+    }
+    function tick(){
+      if(end===null)return;
+      const rem=end-Date.now();
+      if(rem<=0){ if(isPlaying)togglePlay(); stop(); return; }
+      if(!dragging){sl.value=rem/60000;val.textContent=fmt(rem);}
+      const f=rem<=30000?(rem/30000):1;
+      const fade=f*f;
+      if(fade!==sleepFade){sleepFade=fade;if(gainNode)gainNode.gain.value=effectiveGain();}
+    }
+    sl.addEventListener('input',()=>{
+      const m=Math.round(+sl.value/5)*5;
+      sl.value=m;
+      if(m<=0){stop();return;}
+      val.textContent=m+'m';
+      end=Date.now()+m*60000;
+      sleepFade=1;if(gainNode)gainNode.gain.value=effectiveGain();
+      if(!timer)timer=setInterval(tick,100);
+    });
+    ['pointerdown','touchstart'].forEach(ev=>sl.addEventListener(ev,()=>{dragging=true;},{passive:true}));
+    ['pointerup','pointercancel','touchend','touchcancel'].forEach(ev=>window.addEventListener(ev,()=>{
+      if(dragging){dragging=false;tick();}
+    }));
   })();
 </script>
 </body>
