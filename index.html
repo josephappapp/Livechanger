@@ -393,7 +393,14 @@
 
   // iOS: ringer/silent switch mutes Web Audio unless the audio session is "playback".
   // Fix: set audioSession type (iOS 16.4+) and keep a silent <audio> element playing (older iOS).
-  let silentEl=null;
+  let silentEl=null, silentSync=false;
+  // Keep the silent "now playing" element in step with the music so the lock screen shows the right state
+  function silentSet(on){
+    if(!silentEl)return;
+    silentSync=true;
+    try{ if(on){const pr=silentEl.play();if(pr&&pr.catch)pr.catch(()=>{});} else silentEl.pause(); }catch(e){}
+    setTimeout(()=>{silentSync=false;},150);
+  }
   function unlockIOSAudio(){
     try{if(navigator.audioSession)navigator.audioSession.type='playback';}catch(e){}
     try{
@@ -407,6 +414,9 @@
         silentEl=new Audio(URL.createObjectURL(new Blob([buf],{type:'audio/wav'})));
         silentEl.loop=true;
         silentEl.setAttribute('playsinline','');
+        // Lock-screen / system pause & play act on this element, so mirror them onto the music
+        silentEl.addEventListener('pause',()=>{ if(!silentSync&&isPlaying)togglePlay(); });
+        silentEl.addEventListener('play',()=>{ if(!silentSync&&!isPlaying&&buffer)togglePlay(); });
       }
       if(silentEl.paused){const pr=silentEl.play();if(pr&&pr.catch)pr.catch(()=>{});}
     }catch(e){}
@@ -711,7 +721,9 @@
       if(pitchAudioEl){pitchAudioEl.pause();}
       stopAudio();
       status.textContent='Paused';
+      silentSet(false);
     } else {
+      silentSet(true);
       startAudio(pausedAt);
     }
   }
@@ -1206,15 +1218,14 @@
     const ms=navigator.mediaSession;
     const on=(a,f)=>{try{ms.setActionHandler(a,f);}catch(e){}};
     const bar=document.getElementById('progressBar');
-    const seekBy=sec=>{if(!buffer)return;seek(Math.max(0,Math.min(100,(+bar.value)+(sec/buffer.duration)*100)));};
     on('play',()=>{if(!isPlaying)togglePlay();});
     on('pause',()=>{if(isPlaying)togglePlay();});
     on('stop',()=>{if(isPlaying)togglePlay();});
     on('nexttrack',()=>nextTrack(false));
     on('previoustrack',()=>prevTrack());
     on('seekto',d=>{if(buffer&&d.seekTime!=null)seek(Math.max(0,Math.min(100,d.seekTime/buffer.duration*100)));});
-    on('seekforward',d=>seekBy(d.seekOffset||10));
-    on('seekbackward',d=>seekBy(-(d.seekOffset||10)));
+    on('seekforward',null);
+    on('seekbackward',null);
     function meta(){
       const name=(document.getElementById('fileName').textContent||'Livechanger').replace(/\.[^.]+$/,'');
       try{
