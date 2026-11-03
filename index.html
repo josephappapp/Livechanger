@@ -274,6 +274,8 @@
     .cp-row { display:flex; align-items:center; justify-content:space-between; margin-top:10px; gap:8px; }
     .cp-hex { font-family:var(--font); font-size:0.66rem; color:rgba(255,255,255,0.9); letter-spacing:0.04em; }
     .cp-reset { font-size:0.6rem; padding:4px 10px; }
+    .folder-row { display:flex; justify-content:center; margin:-0.3rem 0 1rem; }
+    .folder-btn { font-size:0.68rem; padding:5px 18px; }
     header { padding-top:calc(env(safe-area-inset-top,0px) * 0.45); }
   </style>
 </head>
@@ -306,6 +308,8 @@
     <div class="file-name" id="fileName"></div>
   </div>
   <input type="file" id="fileInput" accept="audio/*,.mp3,.m4a,.wav,.aac,.ogg,.flac,.mp4,audio/mpeg,audio/mp4,audio/x-m4a,audio/wav,audio/aac" multiple>
+  <input type="file" id="folderInput" webkitdirectory directory multiple style="display:none">
+  <div class="folder-row"><button class="glass-btn black folder-btn" id="folderBtn">Add Folder</button></div>
   <!-- Playlist UI -->
   <div id="playlistWrap" style="display:none;margin-bottom:1rem;">
     <div id="playlistList" style="max-height:120px;overflow-y:auto;border-radius:8px;border:1px solid rgba(255,255,255,0.25);background:rgba(255,255,255,0.08);padding:4px 0;"></div>
@@ -444,12 +448,16 @@
   const dropZone=document.getElementById('dropZone');
   dropZone.addEventListener('dragover',e=>{e.preventDefault();dropZone.classList.add('drag-over');});
   dropZone.addEventListener('dragleave',()=>dropZone.classList.remove('drag-over'));
-  dropZone.addEventListener('drop',e=>{
-    e.preventDefault();dropZone.classList.remove('drag-over');
-    const files=Array.from(e.dataTransfer.files).filter(f=>f.type.startsWith('audio/')||/\.(mp3|m4a|wav|aac|ogg|flac)$/i.test(f.name));
-    if(!files.length)return;
+  // ---- Folder / file import (shared by drop, file picker and folder picker) ----
+  const AUDIO_RE=/\.(mp3|m4a|wav|aac|ogg|oga|opus|flac|weba)$/i;
+  const pathOf=f=>f._path||f.webkitRelativePath||f.name;
+  function importFiles(all){
+    const seen=new Set(playlist.map(f=>f.name+'|'+f.size));
+    let files=all.filter(f=>f.type.startsWith('audio/')||AUDIO_RE.test(f.name))
+                 .filter(f=>{const k=f.name+'|'+f.size;if(seen.has(k))return false;seen.add(k);return true;});
+    if(!files.length){status.textContent=all.length?'No new music files found':'';return;}
+    files.sort((x,y)=>pathOf(x).localeCompare(pathOf(y),undefined,{numeric:true,sensitivity:'base'}));
     if(playlist.length>0){
-      // Always append to existing playlist
       files.forEach(f=>playlist.push(f));
       renderPlaylist();
       status.textContent='Added '+files.length+' track'+(files.length>1?'s':'');
@@ -458,18 +466,46 @@
     } else {
       loadPlaylist(files);
     }
-  });
-
-  // Playlist
-  let playlist=[], playlistIndex=0;
-
-  function loadPlaylist(files){
-    playlist=files;
-    playlistIndex=0;
-    renderPlaylist();
-    loadFile(files[0]);
   }
-
+  // Walk dropped folders (any depth, several at once)
+  async function walkEntry(entry,out,path){
+    if(entry.isFile){
+      const f=await new Promise((res,rej)=>entry.file(res,rej));
+      try{Object.defineProperty(f,'_path',{value:path+f.name});}catch(e){}
+      out.push(f);
+    } else if(entry.isDirectory){
+      const reader=entry.createReader();
+      let batch;
+      do{
+        batch=await new Promise((res,rej)=>reader.readEntries(res,rej));
+        for(const child of batch)await walkEntry(child,out,path+entry.name+'/');
+      }while(batch.length);
+    }
+  }
+  async function filesFromDrop(dt){
+    const items=Array.from(dt.items||[]);
+    if(items.length&&items[0].webkitGetAsEntry){
+      const entries=items.map(i=>i.webkitGetAsEntry()).filter(Boolean); // must happen before any await
+      const out=[];
+      for(const en of entries)await walkEntry(en,out,'');
+      return out;
+    }
+    return Array.from(dt.files);
+  }
+  dropZone.addEventListener('drop',async e=>{
+    e.preventDefault();dropZone.classList.remove('drag-over');
+    status.textContent='Reading files...';
+    const files=await filesFromDrop(e.dataTransfer);
+    importFiles(files);
+  });
+  const folderInput=document.getElementById('folderInput');
+  document.getElementById('folderBtn').addEventListener('click',()=>{unlockIOSAudio();folderInput.click();});
+  folderInput.addEventListener('change',e=>{
+    const files=Array.from(e.target.files);
+    e.target.value='';
+    status.textContent='Reading folder...';
+    importFiles(files);
+  });
   function renderPlaylist(){
     const wrap=document.getElementById('playlistWrap');
     const list=document.getElementById('playlistList');
