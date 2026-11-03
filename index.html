@@ -274,8 +274,23 @@
     .cp-row { display:flex; align-items:center; justify-content:space-between; margin-top:10px; gap:8px; }
     .cp-hex { font-family:var(--font); font-size:0.66rem; color:rgba(255,255,255,0.9); letter-spacing:0.04em; }
     .cp-reset { font-size:0.6rem; padding:4px 10px; }
-    .folder-row { display:flex; justify-content:center; margin:-0.3rem 0 1rem; }
-    .folder-btn { font-size:0.68rem; padding:5px 18px; }
+    .lib-wrap { margin:0 0 1rem; border:1px solid rgba(255,255,255,0.25); border-radius:12px; background:rgba(255,255,255,0.06); }
+    .lib-head { display:flex; justify-content:space-between; padding:8px 12px; font-family:var(--font); font-size:0.72rem; color:rgba(255,255,255,0.85); cursor:pointer; }
+    .lib-body { padding:0 10px 10px; }
+    .lib-body[hidden], .lib-save[hidden] { display:none; }
+    .lib-actions, .lib-save { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px; }
+    .lib-actions .glass-btn, .lib-save .glass-btn { font-size:0.62rem; padding:4px 10px; }
+    .lib-save input { flex:1; min-width:0; font-family:var(--font); font-size:0.7rem; padding:4px 8px; border-radius:8px; border:1px solid rgba(255,255,255,0.4); background:rgba(0,0,0,0.25); color:#fff; outline:none; }
+    .lib-chips { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px; }
+    .lib-chip { font-family:var(--font); font-size:0.64rem; padding:3px 6px 3px 10px; border-radius:14px; cursor:pointer; border:1px solid rgba(255,255,255,0.3); background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.85); display:inline-flex; gap:6px; align-items:center; }
+    .lib-chip:hover { border-color:var(--c2); }
+    .lib-list { max-height:140px; overflow-y:auto; border-radius:8px; border:1px solid rgba(255,255,255,0.2); background:rgba(255,255,255,0.06); padding:3px 0; }
+    .lib-item { display:flex; justify-content:space-between; gap:8px; padding:5px 10px; font-family:var(--font); font-size:0.7rem; color:rgba(255,255,255,0.8); cursor:pointer; }
+    .lib-item:hover { background:rgba(255,255,255,0.1); }
+    .lib-item .nm { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .lib-item .x, .lib-chip .x { opacity:0.6; flex-shrink:0; }
+    .lib-item .x:hover, .lib-chip .x:hover { opacity:1; color:#ff6b8f; }
+    .lib-usage { margin-top:6px; font-family:var(--font); font-size:0.62rem; color:rgba(255,255,255,0.6); }
     header { padding-top:calc(env(safe-area-inset-top,0px) * 0.45); }
   </style>
 </head>
@@ -308,8 +323,6 @@
     <div class="file-name" id="fileName"></div>
   </div>
   <input type="file" id="fileInput" accept="audio/*,.mp3,.m4a,.wav,.aac,.ogg,.flac,.mp4,audio/mpeg,audio/mp4,audio/x-m4a,audio/wav,audio/aac" multiple>
-  <input type="file" id="folderInput" webkitdirectory directory multiple style="display:none">
-  <div class="folder-row"><button class="glass-btn black folder-btn" id="folderBtn">Add Folder</button></div>
   <!-- Playlist UI -->
   <div id="playlistWrap" style="display:none;margin-bottom:1rem;">
     <div id="playlistList" style="max-height:120px;overflow-y:auto;border-radius:8px;border:1px solid rgba(255,255,255,0.25);background:rgba(255,255,255,0.08);padding:4px 0;"></div>
@@ -317,6 +330,22 @@
       <button class="glass-btn black" onclick="prevTrack()" style="font-size:0.9rem;padding:4px 10px;min-width:36px;"><span style="position:relative;z-index:1;display:flex;align-items:center;justify-content:center;margin-bottom:3px;">⏮︎</span></button>
       <button class="glass-btn black" onclick="nextTrack()" style="font-size:0.9rem;padding:4px 10px;min-width:36px;"><span style="position:relative;z-index:1;display:flex;align-items:center;justify-content:center;margin-bottom:3px;">⏭︎</span></button>
       <span id="playlistStatus" style="font-size:0.7rem;color:var(--text-sub);font-family:var(--font);"></span>
+    </div>
+  </div>
+
+  <!-- Library: songs saved in this browser -->
+  <div class="lib-wrap" id="libWrap" style="display:none">
+    <div class="lib-head" id="libHead"><span id="libTitle">Library</span><span id="libCaret">+</span></div>
+    <div class="lib-body" id="libBody" hidden>
+      <div class="lib-actions">
+        <button class="glass-btn black" id="libPlayAll">Play All</button>
+        <button class="glass-btn black" id="libSavePl">Save Playlist</button>
+        <button class="glass-btn black" id="libClear">Clear</button>
+      </div>
+      <div class="lib-save" id="libSaveRow" hidden><input type="text" id="libPlName" placeholder="Playlist name" maxlength="30"><button class="glass-btn black" id="libPlOk">Save</button></div>
+      <div class="lib-chips" id="libChips"></div>
+      <div class="lib-list" id="libList"></div>
+      <div class="lib-usage" id="libUsage"></div>
     </div>
   </div>
 
@@ -431,6 +460,7 @@
   document.getElementById('fileInput').addEventListener('change',e=>{
     const files=Array.from(e.target.files);
     e.target.value='';
+    if(window.libSave)libSave(files);
     if(files.length>1){
       loadPlaylist(files);
     } else if(files.length===1){
@@ -448,16 +478,13 @@
   const dropZone=document.getElementById('dropZone');
   dropZone.addEventListener('dragover',e=>{e.preventDefault();dropZone.classList.add('drag-over');});
   dropZone.addEventListener('dragleave',()=>dropZone.classList.remove('drag-over'));
-  // ---- Folder / file import (shared by drop, file picker and folder picker) ----
-  const AUDIO_RE=/\.(mp3|m4a|wav|aac|ogg|oga|opus|flac|weba)$/i;
-  const pathOf=f=>f._path||f.webkitRelativePath||f.name;
-  function importFiles(all){
-    const seen=new Set(playlist.map(f=>f.name+'|'+f.size));
-    let files=all.filter(f=>f.type.startsWith('audio/')||AUDIO_RE.test(f.name))
-                 .filter(f=>{const k=f.name+'|'+f.size;if(seen.has(k))return false;seen.add(k);return true;});
-    if(!files.length){status.textContent=all.length?'No new music files found':'';return;}
-    files.sort((x,y)=>pathOf(x).localeCompare(pathOf(y),undefined,{numeric:true,sensitivity:'base'}));
+  dropZone.addEventListener('drop',e=>{
+    e.preventDefault();dropZone.classList.remove('drag-over');
+    const files=Array.from(e.dataTransfer.files).filter(f=>f.type.startsWith('audio/')||/\.(mp3|m4a|wav|aac|ogg|flac)$/i.test(f.name));
+    if(!files.length)return;
+    if(window.libSave)libSave(files);
     if(playlist.length>0){
+      // Always append to existing playlist
       files.forEach(f=>playlist.push(f));
       renderPlaylist();
       status.textContent='Added '+files.length+' track'+(files.length>1?'s':'');
@@ -466,46 +493,18 @@
     } else {
       loadPlaylist(files);
     }
-  }
-  // Walk dropped folders (any depth, several at once)
-  async function walkEntry(entry,out,path){
-    if(entry.isFile){
-      const f=await new Promise((res,rej)=>entry.file(res,rej));
-      try{Object.defineProperty(f,'_path',{value:path+f.name});}catch(e){}
-      out.push(f);
-    } else if(entry.isDirectory){
-      const reader=entry.createReader();
-      let batch;
-      do{
-        batch=await new Promise((res,rej)=>reader.readEntries(res,rej));
-        for(const child of batch)await walkEntry(child,out,path+entry.name+'/');
-      }while(batch.length);
-    }
-  }
-  async function filesFromDrop(dt){
-    const items=Array.from(dt.items||[]);
-    if(items.length&&items[0].webkitGetAsEntry){
-      const entries=items.map(i=>i.webkitGetAsEntry()).filter(Boolean); // must happen before any await
-      const out=[];
-      for(const en of entries)await walkEntry(en,out,'');
-      return out;
-    }
-    return Array.from(dt.files);
-  }
-  dropZone.addEventListener('drop',async e=>{
-    e.preventDefault();dropZone.classList.remove('drag-over');
-    status.textContent='Reading files...';
-    const files=await filesFromDrop(e.dataTransfer);
-    importFiles(files);
   });
-  const folderInput=document.getElementById('folderInput');
-  document.getElementById('folderBtn').addEventListener('click',()=>{unlockIOSAudio();folderInput.click();});
-  folderInput.addEventListener('change',e=>{
-    const files=Array.from(e.target.files);
-    e.target.value='';
-    status.textContent='Reading folder...';
-    importFiles(files);
-  });
+
+  // Playlist
+  let playlist=[], playlistIndex=0;
+
+  function loadPlaylist(files){
+    playlist=files;
+    playlistIndex=0;
+    renderPlaylist();
+    loadFile(files[0]);
+  }
+
   function renderPlaylist(){
     const wrap=document.getElementById('playlistWrap');
     const list=document.getElementById('playlistList');
@@ -1280,6 +1279,115 @@
         }
       }catch(e){}
     },1000);
+  })();
+</script>
+<script>
+  // Library: songs saved in this browser (IndexedDB) so they never need re-picking
+  (function(){
+    if(!window.indexedDB)return;
+    const $=id=>document.getElementById(id);
+    const AUDIO_RE=/\.(mp3|m4a|wav|aac|ogg|oga|opus|flac|weba)$/i;
+    const nat=(a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true,sensitivity:'base'});
+    let db=null,tracks=[],lists=[];
+    const idByKey=new Map();
+    const req=r=>new Promise((res,rej)=>{r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});
+    const done=t=>new Promise((res,rej)=>{t.oncomplete=()=>res();t.onerror=t.onabort=()=>rej(t.error);});
+    function openDB(){
+      return new Promise((res,rej)=>{
+        const r=indexedDB.open('livechanger',1);
+        r.onupgradeneeded=()=>{const d=r.result;d.createObjectStore('tracks',{keyPath:'id',autoIncrement:true});d.createObjectStore('blobs');d.createObjectStore('playlists',{keyPath:'name'});};
+        r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);
+      });
+    }
+    async function addTrack(f){
+      const t=db.transaction(['tracks','blobs'],'readwrite');
+      const meta={name:f.name,type:f.type||'audio/mpeg',size:f.size,added:Date.now()};
+      meta.id=await req(t.objectStore('tracks').add(meta));
+      t.objectStore('blobs').put(f,meta.id);
+      await done(t);return meta;
+    }
+    async function getFile(id){
+      const m=tracks.find(x=>x.id===id);if(!m)return null;
+      const blob=await req(db.transaction('blobs').objectStore('blobs').get(id));
+      if(!blob)return null;
+      const f=new File([blob],m.name,{type:m.type});f._libId=id;return f;
+    }
+    async function filesFor(ids){const out=[];for(const id of ids){const f=await getFile(id);if(f)out.push(f);}return out;}
+    async function refresh(){
+      tracks=(await req(db.transaction('tracks').objectStore('tracks').getAll())).sort(nat);
+      lists=await req(db.transaction('playlists').objectStore('playlists').getAll());
+      idByKey.clear();tracks.forEach(t=>idByKey.set(t.name+'|'+t.size,t.id));
+      render();
+    }
+    function render(){
+      $('libWrap').style.display='block';
+      $('libTitle').textContent='Library · '+tracks.length+' song'+(tracks.length===1?'':'s');
+      const list=$('libList');list.innerHTML='';
+      tracks.forEach(t=>{
+        const row=document.createElement('div');row.className='lib-item';
+        const nm=document.createElement('span');nm.className='nm';nm.textContent=t.name.replace(/\.[^/.]+$/,'');
+        const x=document.createElement('span');x.className='x';x.textContent='✕';
+        x.onclick=async e=>{e.stopPropagation();const tx=db.transaction(['tracks','blobs'],'readwrite');tx.objectStore('tracks').delete(t.id);tx.objectStore('blobs').delete(t.id);await done(tx);refresh();};
+        row.onclick=()=>playOne(t.id);row.append(nm,x);list.appendChild(row);
+      });
+      const chips=$('libChips');chips.innerHTML='';
+      lists.forEach(l=>{
+        const c=document.createElement('div');c.className='lib-chip';
+        const nm=document.createElement('span');nm.textContent=l.name;
+        const x=document.createElement('span');x.className='x';x.textContent='✕';
+        x.onclick=async e=>{e.stopPropagation();await req(db.transaction('playlists','readwrite').objectStore('playlists').delete(l.name));refresh();};
+        c.onclick=()=>playList(l.ids);c.append(nm,x);chips.appendChild(c);
+      });
+      const mb=tracks.reduce((a,t)=>a+t.size,0)/1048576;
+      $('libUsage').textContent=tracks.length?('Saved on this device: '+mb.toFixed(mb<10?1:0)+' MB'):'Songs you add are saved here automatically.';
+    }
+    async function playOne(id){
+      const f=await getFile(id);if(!f)return;
+      unlockIOSAudio();
+      if(playlist.length>0){
+        const i=playlist.findIndex(p=>p._libId===id);
+        if(i>=0)playlistIndex=i;else{playlist.push(f);playlistIndex=playlist.length-1;}
+        renderPlaylist();loadFile(playlist[playlistIndex],true);
+      }else loadFile(f,true);
+    }
+    async function playList(ids){
+      const files=await filesFor(ids);if(!files.length)return;
+      unlockIOSAudio();
+      playlist=files;playlistIndex=0;renderPlaylist();loadFile(files[0],true);
+    }
+    window.libSave=async function(files){
+      if(!db)return;let added=0;
+      for(const f of files){
+        if(!(f.type.startsWith('audio/')||AUDIO_RE.test(f.name)))continue;
+        const k=f.name+'|'+f.size;
+        if(idByKey.has(k)){f._libId=idByKey.get(k);continue;}
+        try{const m=await addTrack(f);f._libId=m.id;idByKey.set(k,m.id);added++;}
+        catch(e){$('status').textContent='Could not save to library (storage full?)';break;}
+      }
+      if(added){if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();await refresh();}
+    };
+    $('libHead').onclick=()=>{const b=$('libBody');b.hidden=!b.hidden;$('libCaret').textContent=b.hidden?'+':'–';};
+    $('libPlayAll').onclick=()=>playList(tracks.map(t=>t.id));
+    $('libSavePl').onclick=()=>{
+      if(!playlist.length){$('status').textContent='Load a playlist first';return;}
+      const r=$('libSaveRow');r.hidden=!r.hidden;if(!r.hidden)$('libPlName').focus();
+    };
+    async function commit(){
+      const name=$('libPlName').value.trim();if(!name)return;
+      const ids=playlist.map(f=>f._libId).filter(Boolean);
+      if(!ids.length){$('status').textContent='Songs are still saving, try again';return;}
+      await req(db.transaction('playlists','readwrite').objectStore('playlists').put({name,ids}));
+      $('libPlName').value='';$('libSaveRow').hidden=true;refresh();
+    }
+    $('libPlOk').onclick=commit;
+    $('libPlName').addEventListener('keydown',e=>{if(e.key==='Enter')commit();});
+    $('libClear').onclick=async()=>{
+      if(!tracks.length||!confirm('Remove all saved songs and playlists from this device?'))return;
+      const tx=db.transaction(['tracks','blobs','playlists'],'readwrite');
+      ['tracks','blobs','playlists'].forEach(n=>tx.objectStore(n).clear());
+      await done(tx);refresh();
+    };
+    openDB().then(d=>{db=d;return refresh();}).catch(()=>{});
   })();
 </script>
 </body>
