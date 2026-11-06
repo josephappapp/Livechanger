@@ -291,6 +291,10 @@
     .lib-item .x, .lib-chip .x { opacity:0.6; flex-shrink:0; }
     .lib-item .x:hover, .lib-chip .x:hover { opacity:1; color:#ff6b8f; }
     .lib-usage { margin-top:6px; font-family:var(--font); font-size:0.62rem; color:rgba(255,255,255,0.6); }
+    .dl-row { display:flex; justify-content:center; margin:-0.4rem 0 1.1rem; }
+    .dl-row .glass-btn { font-size:0.68rem; padding:5px 16px; }
+    .glass-btn:disabled { opacity:0.45; cursor:not-allowed; }
+    .glass-btn.on { color:var(--c2); border-color:var(--c2); box-shadow:0 0 10px var(--glow); }
     header { padding-top:calc(env(safe-area-inset-top,0px) * 0.45); }
   </style>
 </head>
@@ -329,6 +333,8 @@
     <div style="display:flex;gap:6px;margin-top:10px;align-items:flex-end;">
       <button class="glass-btn black" onclick="prevTrack()" style="font-size:0.9rem;padding:4px 10px;min-width:36px;"><span style="position:relative;z-index:1;display:flex;align-items:center;justify-content:center;margin-bottom:3px;">⏮︎</span></button>
       <button class="glass-btn black" onclick="nextTrack()" style="font-size:0.9rem;padding:4px 10px;min-width:36px;"><span style="position:relative;z-index:1;display:flex;align-items:center;justify-content:center;margin-bottom:3px;">⏭︎</span></button>
+      <button class="glass-btn black" id="shuffleBtn" onclick="toggleShuffle()" style="font-size:0.7rem;padding:4px 12px;">Shuffle</button>
+      <button class="glass-btn black" id="loopPlBtn" onclick="toggleLoopPlaylist()" style="font-size:0.7rem;padding:4px 10px;">Loop All</button>
       <span id="playlistStatus" style="font-size:0.7rem;color:var(--text-sub);font-family:var(--font);"></span>
     </div>
   </div>
@@ -384,11 +390,12 @@
     </div>
   </div>
 
+  <div class="dl-row"><button class="glass-btn black" id="dlBtn" disabled>Download with effects</button></div>
   <hr class="divider">
 
   <div class="sliders-with-volume">
     <div class="sliders-col">
-      <div class="slider-row"><label>Speed</label><input type="range" class="horizontal" id="speedSlider" min="0.5" max="1.5" step="0.01" value="1" oninput="updateSpeed(this.value)"><span class="slider-val" id="speedVal">1.00x</span></div>
+      <div class="slider-row"><label>Speed</label><input type="range" class="horizontal" id="speedSlider" min="0.25" max="1.75" step="0.01" value="1" oninput="updateSpeed(this.value)"><span class="slider-val" id="speedVal">1.00x</span></div>
       <div class="slider-row"><label>Bass</label><input type="range" class="horizontal" id="bassSlider" min="-20" max="20" step="1" value="0" oninput="updateBass(this.value)"><span class="slider-val" id="bassVal">0dB</span></div>
       <div class="slider-row"><label>Reverb</label><input type="range" class="horizontal" id="reverbSlider" min="0" max="100" step="5" value="0" oninput="updateReverb(this.value)"><span class="slider-val" id="reverbVal">0%</span></div>
       <div class="slider-row"><label>Delay</label><input type="range" class="horizontal" id="delaySlider" min="0" max="100" step="5" value="0" oninput="updateDelay(this.value)"><span class="slider-val" id="delayVal">0%</span></div>
@@ -521,16 +528,46 @@
     document.getElementById('playlistStatus').textContent=(playlistIndex+1)+' / '+playlist.length;
   }
 
+  // Shuffle: plays every track once in random order before repeating; Prev steps back through what played
+  let shuffleOn=false, shuffleBag=[], shuffleHistory=[], loopPlaylist=false;
+  function toggleLoopPlaylist(){
+    loopPlaylist=!loopPlaylist;
+    document.getElementById('loopPlBtn').classList.toggle('on',loopPlaylist);
+  }
+  // Should the next song start by itself when this one ends?
+  function hasNextAuto(){
+    if(playlist.length<=1)return false;
+    if(loopPlaylist)return true;
+    if(shuffleOn)return shuffleHistory.length<playlist.length-1;
+    return playlistIndex<playlist.length-1;
+  }
+  function toggleShuffle(){
+    shuffleOn=!shuffleOn;shuffleBag=[];shuffleHistory=[];
+    document.getElementById('shuffleBtn').classList.toggle('on',shuffleOn);
+  }
   function nextTrack(autoplay=false){
     if(!playlist.length)return;
-    playlistIndex=(playlistIndex+1)%playlist.length;
+    if(shuffleOn&&playlist.length>1){
+      shuffleHistory.push(playlistIndex);
+      if(shuffleHistory.length>200)shuffleHistory.shift();
+      shuffleBag=shuffleBag.filter(i=>i<playlist.length&&i!==playlistIndex);
+      if(!shuffleBag.length)shuffleBag=playlist.map((_,i)=>i).filter(i=>i!==playlistIndex);
+      playlistIndex=shuffleBag.splice(Math.floor(Math.random()*shuffleBag.length),1)[0];
+    } else {
+      playlistIndex=(playlistIndex+1)%playlist.length;
+    }
     renderPlaylist();
     loadFile(playlist[playlistIndex], autoplay || isPlaying);
   }
 
   function prevTrack(){
     if(!playlist.length)return;
-    playlistIndex=(playlistIndex-1+playlist.length)%playlist.length;
+    if(shuffleOn&&shuffleHistory.length){
+      playlistIndex=shuffleHistory.pop();
+      if(playlistIndex>=playlist.length)playlistIndex=0;
+    } else {
+      playlistIndex=(playlistIndex-1+playlist.length)%playlist.length;
+    }
     renderPlaylist();
     loadFile(playlist[playlistIndex], isPlaying);
   }
@@ -692,7 +729,7 @@
           else if(isPlaying){
             isPlaying=false;pausedAt=0;playIcon.textContent='▶︎';playBtn.classList.remove('playing');
             cancelAnimationFrame(animFrame);progressBar.value=0;updateTimeDisplay(0);status.textContent='Paused';
-            if(playlist.length>1&&playlistIndex<playlist.length-1){setTimeout(()=>nextTrack(true),300);}
+            if(hasNextAuto()){setTimeout(()=>nextTrack(true),300);}
           }
         };
       });
@@ -727,7 +764,7 @@
         playIcon.textContent='▶︎';playBtn.classList.remove('playing');playBtn.classList.add('paused');
         cancelAnimationFrame(animFrame);progressBar.value=0;
         updateTimeDisplay(0);status.textContent='Paused';
-        if(playlist.length>1&&playlistIndex<playlist.length-1){
+        if(hasNextAuto()){
           setTimeout(()=>nextTrack(true),300);
         }
       }
@@ -1388,6 +1425,78 @@
       await done(tx);refresh();
     };
     openDB().then(d=>{db=d;return refresh();}).catch(()=>{});
+  })();
+</script>
+<script>
+  // Download the current song rendered with the current effects (WAV)
+  (function(){
+    const btn=document.getElementById('dlBtn'),st=document.getElementById('status');
+    let busy=false;
+    const baseName=()=>((document.getElementById('fileName').textContent||'song').replace(/\.[^.]+$/,'').trim()||'song');
+    const gainFor=m=>Math.min(1+(reverbAmount/100)*0.8+(m/100)*0.8,3.5);
+    setInterval(()=>{btn.disabled=!buffer||busy;},400);
+    btn.onclick=async()=>{
+      if(!buffer||busy)return;
+      busy=true;btn.disabled=true;const label=btn.textContent;
+      btn.textContent='Rendering...';st.textContent='Rendering with effects...';
+      let note='';
+      try{
+        const src=buffer,sr=src.sampleRate,spd=speed||1;
+        const tail=(reverbAmount>0||delayAmount>0)?3:0.2;
+        const len=Math.ceil((src.duration/spd+tail)*sr);
+        const off=new OfflineAudioContext(2,len,sr);
+        const s=off.createBufferSource();s.buffer=src;s.playbackRate.value=spd;
+        const g=off.createGain();g.gain.value=gainFor(muffleAmount);
+        const bass=off.createBiquadFilter();bass.type='lowshelf';bass.frequency.value=150;bass.gain.value=bassGain;
+        const mf=off.createBiquadFilter();mf.type='lowpass';mf.Q.value=0.5;mf.frequency.value=muffleFreq(muffleAmount);
+        const dl=off.createDelay(2.0);dl.delayTime.value=0.35;
+        const fb=off.createGain();fb.gain.value=0.45;
+        const dWet=off.createGain();dWet.gain.value=delayAmount/100;
+        const dDry=off.createGain();dDry.gain.value=1;
+        const conv=off.createConvolver();conv.buffer=createReverbBuffer(off);
+        const dry=off.createGain();dry.gain.value=1-reverbAmount/100;
+        const wet=off.createGain();wet.gain.value=reverbAmount/100;
+        s.connect(g);g.connect(bass);bass.connect(mf);
+        mf.connect(dDry);mf.connect(dl);dl.connect(fb);fb.connect(dl);dl.connect(dWet);
+        dDry.connect(dry);dDry.connect(conv);dWet.connect(dry);dWet.connect(conv);
+        conv.connect(wet);dry.connect(off.destination);wet.connect(off.destination);
+        if(pulseEnabled){
+          const beat=60/((detectedBPM||120)*spd),total=len/sr;
+          const seq=[['in',32],['hold',8],['out',16],['rest',16]];
+          let t=0;
+          while(t<total){
+            for(const [ph,beats] of seq){
+              const dur=beats*beat;
+              for(let u=0;u<dur&&t+u<total;u+=0.1){
+                const f=u/dur;
+                let m=ph==='in'?f*100:ph==='hold'?100:ph==='out'?100-f*100:0;
+                m=Math.round(m/5)*5;
+                mf.frequency.setValueAtTime(muffleFreq(m),t+u);
+                g.gain.setValueAtTime(gainFor(m),t+u);
+              }
+              t+=dur;if(t>=total)break;
+            }
+          }
+        }
+        s.start(0);
+        const out=await off.startRendering();
+        // keep it from clipping
+        let peak=0;
+        for(let c=0;c<out.numberOfChannels;c++){const d=out.getChannelData(c);for(let i=0;i<d.length;i++){const a=Math.abs(d[i]);if(a>peak)peak=a;}}
+        if(peak>0.98){const k=0.98/peak;for(let c=0;c<out.numberOfChannels;c++){const d=out.getChannelData(c);for(let i=0;i<d.length;i++)d[i]*=k;}}
+        const blob=await bufferToBlob(out);
+        const url=URL.createObjectURL(blob),a=document.createElement('a');
+        a.href=url;a.download=baseName()+' (Livechanger).wav';
+        document.body.appendChild(a);a.click();a.remove();
+        setTimeout(()=>URL.revokeObjectURL(url),60000);
+        if(keepPitch&&Math.abs(spd-1)>0.001)note=' (Keep Pitch is not applied to downloads)';
+        st.textContent='Downloaded'+note;
+      }catch(e){
+        st.textContent='Could not render: '+(e&&e.message?e.message:e);
+      }finally{
+        busy=false;btn.textContent=label;btn.disabled=!buffer;
+      }
+    };
   })();
 </script>
 </body>
