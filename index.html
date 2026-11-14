@@ -467,7 +467,7 @@
     try{if(navigator.audioSession)navigator.audioSession.type='playback';}catch(e){}
     try{
       if(!silentEl){
-        const sr=8000,n=sr,buf=new ArrayBuffer(44+n*2),v=new DataView(buf);
+        const sr=8000,n=sr*300,buf=new ArrayBuffer(44+n*2),v=new DataView(buf);
         const w=(o,t)=>{for(let i=0;i<t.length;i++)v.setUint8(o+i,t.charCodeAt(i));};
         w(0,'RIFF');v.setUint32(4,36+n*2,true);w(8,'WAVEfmt ');v.setUint32(16,16,true);
         v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,sr,true);
@@ -477,6 +477,7 @@
         silentEl.loop=true;
         silentEl.setAttribute('playsinline','');
         // Lock-screen / system pause & play act on this element, so mirror them onto the music
+        silentEl.addEventListener('playing',()=>{ if(window.lcRegisterMedia)lcRegisterMedia(); });
         silentEl.addEventListener('pause',()=>{ if(!silentSync&&isPlaying)togglePlay(); });
         silentEl.addEventListener('play',()=>{ if(!silentSync&&!isPlaying&&buffer)togglePlay(); });
       }
@@ -1315,14 +1316,16 @@
     const ms=navigator.mediaSession;
     const on=(a,f)=>{try{ms.setActionHandler(a,f);}catch(e){}};
     const bar=document.getElementById('progressBar');
-    on('play',()=>{if(!isPlaying)togglePlay();});
-    on('pause',()=>{if(isPlaying)togglePlay();});
-    on('stop',()=>{if(isPlaying)togglePlay();});
-    on('nexttrack',()=>nextTrack(false));
-    on('previoustrack',()=>prevTrack());
-    on('seekto',d=>{if(buffer&&d.seekTime!=null)seek(Math.max(0,Math.min(100,d.seekTime/buffer.duration*100)));});
-    on('seekforward',null);
-    on('seekbackward',null);
+    // Only play/pause/next/previous: extra seek handlers make iOS swap the skip buttons for 10s jumps.
+    function reg(){
+      on('play',()=>{if(!isPlaying)togglePlay();});
+      on('pause',()=>{if(isPlaying)togglePlay();});
+      on('stop',()=>{if(isPlaying)togglePlay();});
+      on('nexttrack',()=>nextTrack(false));
+      on('previoustrack',()=>prevTrack());
+      on('seekto',null);on('seekforward',null);on('seekbackward',null);
+    }
+    reg();window.lcRegisterMedia=reg;   // re-run when the keep-alive audio actually starts
     function meta(){
       const name=(document.getElementById('fileName').textContent||'Livechanger').replace(/\.[^.]+$/,'');
       try{
@@ -1335,10 +1338,6 @@
     setInterval(()=>{
       try{
         ms.playbackState=isPlaying?'playing':'paused';
-        if(buffer&&ms.setPositionState){
-          const d=buffer.duration,pos=Math.max(0,Math.min(d,(+bar.value/100)*d));
-          ms.setPositionState({duration:d,playbackRate:speed||1,position:pos});
-        }
       }catch(e){}
     },1000);
   })();
