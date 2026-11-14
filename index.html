@@ -478,8 +478,9 @@
         silentEl.setAttribute('playsinline','');
         // Lock-screen / system pause & play act on this element, so mirror them onto the music
         silentEl.addEventListener('playing',()=>{ if(window.lcRegisterMedia)lcRegisterMedia(); });
-        silentEl.addEventListener('pause',()=>{ if(!silentSync&&isPlaying)togglePlay(); });
-        silentEl.addEventListener('play',()=>{ if(!silentSync&&!isPlaying&&buffer)togglePlay(); });
+        const guarded=()=>performance.now()<(window.lcSkipGuardUntil||0);
+        silentEl.addEventListener('pause',()=>{ if(!silentSync&&!guarded()&&isPlaying)togglePlay(); });
+        silentEl.addEventListener('play',()=>{ if(!silentSync&&!guarded()&&!isPlaying&&buffer)togglePlay(); });
       }
       if(silentEl.paused){const pr=silentEl.play();if(pr&&pr.catch)pr.catch(()=>{});}
     }catch(e){}
@@ -1321,8 +1322,10 @@
       on('play',()=>{if(!isPlaying)togglePlay();});
       on('pause',()=>{if(isPlaying)togglePlay();});
       on('stop',()=>{if(isPlaying)togglePlay();});
-      on('nexttrack',()=>nextTrack(false));
-      on('previoustrack',()=>prevTrack());
+      // Skipping makes iOS pause/resume the keep-alive audio; ignore that for a few seconds so it
+      // can't restart the old song while the new one is loading.
+      on('nexttrack',()=>{const was=isPlaying;window.lcSkipGuardUntil=performance.now()+4000;if(was)silentSet(true);nextTrack(was);});
+      on('previoustrack',()=>{const was=isPlaying;window.lcSkipGuardUntil=performance.now()+4000;if(was)silentSet(true);prevTrack();});
       on('seekto',null);on('seekforward',null);on('seekbackward',null);
     }
     reg();window.lcRegisterMedia=reg;   // re-run when the keep-alive audio actually starts
