@@ -295,6 +295,21 @@
     .dl-row .glass-btn { font-size:0.68rem; padding:5px 16px; }
     .glass-btn:disabled { opacity:0.45; cursor:not-allowed; }
     .glass-btn.on { color:var(--c2); border-color:var(--c2); box-shadow:0 0 10px var(--glow); }
+    .yt-row { display:flex; gap:6px; margin:-0.3rem 0 1rem; }
+    .yt-row input { flex:1; min-width:0; font-family:var(--font); font-size:0.7rem; padding:6px 10px; border-radius:10px; border:1px solid rgba(255,255,255,0.35); background:rgba(0,0,0,0.25); color:#fff; outline:none; }
+    .yt-row .glass-btn { font-size:0.66rem; padding:5px 14px; }
+    .yt-wrap { margin:0 0 1rem; }
+    .yt-wrap[hidden] { display:none; }
+    .yt-frame { position:relative; width:100%; aspect-ratio:16/9; border-radius:12px; overflow:hidden; background:#000; }
+    .yt-frame iframe, .yt-frame #ytPlayer { position:absolute; inset:0; width:100%; height:100%; border:0; }
+    .yt-ctrl { display:flex; align-items:center; gap:6px; margin:8px 0; font-family:var(--font); font-size:0.66rem; color:rgba(255,255,255,0.8); }
+    .yt-ctrl .glass-btn { font-size:0.62rem; padding:4px 10px; }
+    .yt-ctrl #ytCount { flex:1; text-align:center; }
+    .yt-list { max-height:130px; overflow-y:auto; border-radius:8px; border:1px solid rgba(255,255,255,0.2); background:rgba(255,255,255,0.06); padding:3px 0; }
+    .yt-list .lib-item.active { background:rgba(255,255,255,0.16); color:var(--c2); }
+    .yt-note { margin-top:6px; font-family:var(--font); font-size:0.6rem; color:rgba(255,255,255,0.55); }
+    .dim { opacity:0.35; pointer-events:none; }
+    .yt-mode .dl-row { display:none; }
     header { padding-top:calc(env(safe-area-inset-top,0px) * 0.45); }
   </style>
 </head>
@@ -327,6 +342,13 @@
     <div class="file-name" id="fileName"></div>
   </div>
   <input type="file" id="fileInput" accept="audio/*,.mp3,.m4a,.wav,.aac,.ogg,.flac,.mp4,audio/mpeg,audio/mp4,audio/x-m4a,audio/wav,audio/aac" multiple>
+  <div class="yt-row"><input type="text" id="ytLink" placeholder="Paste a YouTube playlist link"><button class="glass-btn black" id="ytLoad">Load</button></div>
+  <div class="yt-wrap" id="ytWrap" hidden>
+    <div class="yt-frame" id="ytFrame"><div id="ytPlayer"></div></div>
+    <div class="yt-ctrl"><button class="glass-btn black" id="ytPrev">Prev</button><button class="glass-btn black" id="ytNext">Next</button><span id="ytCount"></span><button class="glass-btn black" id="ytClose">Close</button></div>
+    <div class="yt-list" id="ytList"></div>
+    <div class="yt-note">YouTube plays in its own player, so only Speed, Volume and the Sleep timer work here.</div>
+  </div>
   <!-- Playlist UI -->
   <div id="playlistWrap" style="display:none;margin-bottom:1rem;">
     <div id="playlistList" style="max-height:120px;overflow-y:auto;border-radius:8px;border:1px solid rgba(255,255,255,0.25);background:rgba(255,255,255,0.08);padding:4px 0;"></div>
@@ -823,7 +845,8 @@
   function updateTimeDisplay(elapsed){
     const fmt=s=>{const m=Math.floor(s/60),sec=Math.floor(s%60);return m+':'+(sec<10?'0':'')+sec;};
     const dur=buffer?buffer.duration:0;
-    timeDisplay.textContent=fmt(Math.min(elapsed,dur))+' / '+fmt(dur);
+    const sp=speed||1;
+    timeDisplay.textContent=fmt(Math.min(elapsed,dur)/sp)+' / '+fmt(dur/sp);
   }
 
   function updateVolume(val){
@@ -832,9 +855,10 @@
     if(gainNode)gainNode.gain.value=effectiveGain();
   }
   function updateSpeed(val){
+    const oldSpeed=speed;
     speed=parseFloat(val);document.getElementById('speedVal').textContent=speed.toFixed(2)+'x';
     if(isPlaying){
-      const cur=(audioCtx.currentTime-startedAt)*speed;
+      const cur=(audioCtx.currentTime-startedAt)*oldSpeed;
       startedAt=audioCtx.currentTime-cur/speed;
       if(keepPitch&&pitchAudioEl){
         pitchAudioEl.playbackRate=speed;
@@ -844,6 +868,7 @@
       }
 
     }
+    if(!isPlaying&&buffer)updateTimeDisplay(pausedAt);
   }
   function updateReverb(val){reverbAmount=parseInt(val);document.getElementById('reverbVal').textContent=reverbAmount+'%';if(dryNode)dryNode.gain.value=1-reverbAmount/100;if(wetNode)wetNode.gain.value=reverbAmount/100;if(gainNode)gainNode.gain.value=effectiveGain();}
   function updateBass(val){bassGain=parseInt(val);document.getElementById('bassVal').textContent=(bassGain>0?'+':'')+bassGain+'dB';if(bassFilter)bassFilter.gain.value=bassGain;}
@@ -1192,16 +1217,16 @@
     function stop(){
       end=null;clearInterval(timer);timer=null;
       sl.value=0;val.textContent='Off';
-      sleepFade=1;if(gainNode)gainNode.gain.value=effectiveGain();
+      sleepFade=1;if(gainNode)gainNode.gain.value=effectiveGain();if(window.ytFade)ytFade(1);
     }
     function tick(){
       if(end===null)return;
       const rem=end-Date.now();
-      if(rem<=0){ if(isPlaying)togglePlay(); stop(); return; }
+      if(rem<=0){ if(isPlaying||(window.ytPlaying&&ytPlaying()))togglePlay(); stop(); return; }
       if(!dragging){sl.value=rem/60000;val.textContent=fmt(rem);}
       const f=rem<=30000?(rem/30000):1;
       const fade=f*f;
-      if(fade!==sleepFade){sleepFade=fade;if(gainNode)gainNode.gain.value=effectiveGain();}
+      if(fade!==sleepFade){sleepFade=fade;if(gainNode)gainNode.gain.value=effectiveGain();if(window.ytFade)ytFade(fade);}
     }
     sl.addEventListener('input',()=>{
       const m=Math.round(+sl.value/5)*5;
@@ -1497,6 +1522,123 @@
         busy=false;btn.textContent=label;btn.disabled=!buffer;
       }
     };
+  })();
+</script>
+<script>
+  // YouTube playlist mode: official embedded player (IFrame API). Web Audio effects can't reach it,
+  // so only speed, volume and the sleep timer apply here. Personal use only.
+  (function(){
+    const $=id=>document.getElementById(id);
+    const S={on:false,p:null,ids:[],idx:-1,fade:1,titles:[]};window.LCYT=S;
+    const EFFECTS=['bassSlider','reverbSlider','delaySlider','muffleSlider','bitcrushSlider'];
+    const fmt=t=>{t=Math.max(0,Math.floor(t||0));return Math.floor(t/60)+':'+String(t%60).padStart(2,'0');};
+    const status=t=>{$('status').textContent=t;};
+    let apiP=null;
+    function loadAPI(){
+      if(window.YT&&YT.Player)return Promise.resolve();
+      if(apiP)return apiP;
+      apiP=new Promise((res,rej)=>{
+        window.onYouTubeIframeAPIReady=res;
+        const sc=document.createElement('script');sc.src='https://www.youtube.com/iframe_api';
+        sc.onerror=()=>{apiP=null;rej();};document.head.appendChild(sc);
+      });
+      return apiP;
+    }
+    function parse(v){
+      let m=v.match(/[?&]list=([\w-]+)/)||v.match(/^((?:PL|UU|OLAK5uy_|RD)[\w-]+)$/);
+      if(m)return{list:m[1]};
+      m=v.match(/[?&]v=([\w-]{11})/)||v.match(/youtu\.be\/([\w-]{11})/);
+      return m?{video:m[1]}:null;
+    }
+    const dim=on=>{
+      EFFECTS.forEach(id=>{const r=$(id)&&$(id).closest('.slider-row');if(r)r.classList.toggle('dim',on);});
+      const t=document.querySelector('.toggles');if(t)t.classList.toggle('dim',on);
+    };
+    const vol=()=>Math.min(100,(+$('volumeSlider').value)*2*S.fade);
+    window.ytFade=f=>{S.fade=f;if(S.on&&S.p&&S.p.setVolume)S.p.setVolume(vol());};
+    window.ytPlaying=()=>!!(S.on&&S.p&&S.p.getPlayerState&&[1,3].includes(S.p.getPlayerState()));
+    function setIcon(playing){
+      $('playIcon').textContent=playing?'||':'▶︎';
+      $('playBtn').classList.toggle('playing',playing);$('playBtn').classList.toggle('paused',!playing);
+    }
+    function renderList(){
+      const l=$('ytList');l.innerHTML='';
+      S.ids.forEach((id,k)=>{
+        const row=document.createElement('div');row.className='lib-item';
+        const nm=document.createElement('span');nm.className='nm';nm.textContent=(k+1)+'. '+(S.titles[k]||('Video '+(k+1)));
+        row.appendChild(nm);row.onclick=()=>S.p.playVideoAt(k);l.appendChild(row);
+      });
+    }
+    async function fetchTitles(){
+      const ids=S.ids.slice(0,150);let i=0;
+      const work=async()=>{
+        while(i<ids.length&&S.on){
+          const k=i++;
+          try{
+            const r=await fetch('https://noembed.com/embed?url='+encodeURIComponent('https://www.youtube.com/watch?v='+ids[k]));
+            const j=await r.json();
+            if(j.title){S.titles[k]=j.title;const el=$('ytList').children[k];if(el)el.firstChild.textContent=(k+1)+'. '+j.title;}
+          }catch(e){}
+        }
+      };
+      await Promise.all([work(),work(),work(),work()]);
+    }
+    function sync(){
+      const p=S.p;if(!S.on||!p||!p.getPlayerState)return;
+      const st=p.getPlayerState(),playing=st===1||st===3;
+      setIcon(playing);
+      const cur=p.getCurrentTime()||0,dur=p.getDuration()||0,rate=p.getPlaybackRate()||1;
+      if(dur&&!isSeeking)$('progressBar').value=Math.min(100,cur/dur*100);
+      $('timeDisplay').textContent=fmt(cur/rate)+' / '+fmt(dur/rate);
+      const ids=p.getPlaylist&&p.getPlaylist();
+      if(ids&&ids.length&&ids.length!==S.ids.length){S.ids=ids;renderList();fetchTitles();}
+      const idx=p.getPlaylistIndex?p.getPlaylistIndex():-1;
+      if(idx!==S.idx){
+        S.idx=idx;
+        const vd=p.getVideoData&&p.getVideoData();
+        if(vd&&vd.title)$('fileName').textContent=vd.title;
+        [...$('ytList').children].forEach((el,k)=>el.classList.toggle('active',k===idx));
+        $('ytCount').textContent=idx>=0&&S.ids.length?((idx+1)+' / '+S.ids.length):'';
+      }
+      status(playing?'Playing':st===0?'Ended':'Paused');
+    }
+    setInterval(sync,500);
+    async function start(){
+      const info=parse($('ytLink').value.trim());
+      if(!info){status('Paste a YouTube playlist link');return;}
+      status('Loading YouTube...');
+      try{await loadAPI();}catch(e){status('Could not reach YouTube');return;}
+      if(isPlaying)togglePlay();               // stop local audio first (S.on still false)
+      S.on=true;S.ids=[];S.titles=[];S.idx=-1;
+      document.body.classList.add('yt-mode');$('ytWrap').hidden=false;dim(true);$('playBtn').disabled=false;
+      if(S.p){try{S.p.destroy();}catch(e){}S.p=null;}
+      $('ytFrame').innerHTML='<div id="ytPlayer"></div>';
+      const vars={playsinline:1,rel:0};
+      if(info.list){vars.listType='playlist';vars.list=info.list;}
+      S.p=new YT.Player('ytPlayer',{width:'100%',height:'100%',videoId:info.video||undefined,playerVars:vars,events:{
+        onReady:e=>{e.target.setVolume(vol());e.target.setPlaybackRate(speed);try{e.target.playVideo();}catch(x){}},
+        onError:()=>{setTimeout(()=>{try{S.p.nextVideo();}catch(e){}},800);}
+      }});
+    }
+    function close(){
+      if(S.p){try{S.p.destroy();}catch(e){}S.p=null;}
+      S.on=false;S.fade=1;document.body.classList.remove('yt-mode');
+      $('ytWrap').hidden=true;$('ytFrame').innerHTML='<div id="ytPlayer"></div>';dim(false);
+      setIcon(false);$('playBtn').disabled=!buffer;status('');
+    }
+    $('ytLoad').onclick=start;
+    $('ytLink').addEventListener('keydown',e=>{if(e.key==='Enter')start();});
+    $('ytPrev').onclick=()=>{if(S.p)S.p.previousVideo();};
+    $('ytNext').onclick=()=>{if(S.p)S.p.nextVideo();};
+    $('ytClose').onclick=close;
+    // Route the existing controls to the YouTube player while it is active
+    const wrap=(name,fn)=>{const orig=window[name];window[name]=function(...a){return S.on&&S.p?fn(...a):orig.apply(this,a);};};
+    wrap('togglePlay',()=>{ytPlaying()?S.p.pauseVideo():S.p.playVideo();});
+    wrap('seek',v=>{const d=S.p.getDuration();if(d)S.p.seekTo(v/100*d,true);});
+    wrap('nextTrack',()=>S.p.nextVideo());
+    wrap('prevTrack',()=>S.p.previousVideo());
+    const uv=window.updateVolume;window.updateVolume=function(v){uv.apply(this,arguments);if(S.on&&S.p&&S.p.setVolume)S.p.setVolume(vol());};
+    const us=window.updateSpeed;window.updateSpeed=function(v){us.apply(this,arguments);if(S.on&&S.p&&S.p.setPlaybackRate)S.p.setPlaybackRate(parseFloat(v));};
   })();
 </script>
 </body>
